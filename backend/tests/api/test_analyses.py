@@ -121,3 +121,35 @@ def test_delete_removes_record_and_media(client, settings):
 
 def test_delete_missing_is_404(client):
     assert client.delete("/api/analyses/nope").status_code == 404
+
+
+def test_startup_fails_analyses_interrupted_by_restart(client, settings, fake_analyzer):
+    from fastapi.testclient import TestClient
+
+    from app.db.models import Analysis
+    from app.db.repository import AnalysisRepository
+    from app.main import create_app
+
+    # Simulate a server that died mid-analysis: a row stuck in `processing`.
+    with client.app.state.service._session_factory() as session:
+        stuck = AnalysisRepository(session).add(
+            Analysis(
+                filename="clip.mov",
+                media_type="video",
+                mime_type="video/quicktime",
+                storage_path="uploads/stuck.mov",
+                status="processing",
+            )
+        )
+        session.commit()
+        stuck_id = stuck.id
+    assert client.get(f"/api/analyses/{stuck_id}").json()["status"] == "processing"
+    assert client.post(f"/api/analyses/{stuck_id}/retry").status_code == 409
+
+    # "Restart" the server against the same data_dir.
+    restarted = create_app(settings=settings, analyzer=fake_analyzer)
+    with TestClient(restarted) as c:
+        detail = c.get(f"/api/analyses/{stuck_id}").json()
+        assert detail["status"] == "failed"
+        assert detail["error_message"] == "Server restarted during analysis — click Retry"
+        assert c.post(f"/api/analyses/{stuck_id}/retry").status_code == 202

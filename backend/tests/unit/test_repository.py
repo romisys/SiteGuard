@@ -80,3 +80,31 @@ def test_created_at_is_utc_aware_after_reload(session):
     reloaded = repo.get(row.id)
     assert reloaded.created_at.tzinfo is not None
     assert reloaded.created_at.utcoffset() == UTC.utcoffset(None)
+
+
+def test_mark_interrupted_fails_pending_and_processing_only(session):
+    repo = AnalysisRepository(session)
+    pending = repo.add(_row(status="pending"))
+    processing = repo.add(_row(status="processing"))
+    completed = repo.add(_row(status="completed", risk_score=10))
+    session.commit()
+
+    count = repo.mark_interrupted("Server restarted during analysis — click Retry")
+    session.commit()
+    session.expire_all()
+
+    assert count == 2
+    for row in (pending, processing):
+        fetched = repo.get(row.id)
+        assert fetched.status == "failed"
+        assert fetched.error_message == "Server restarted during analysis — click Retry"
+    untouched = repo.get(completed.id)
+    assert untouched.status == "completed"
+    assert untouched.error_message is None
+
+
+def test_mark_interrupted_with_nothing_stuck_returns_zero(session):
+    repo = AnalysisRepository(session)
+    repo.add(_row(status="completed"))
+    session.commit()
+    assert repo.mark_interrupted("restarted") == 0

@@ -11,6 +11,7 @@ from app.services.gemini_client import GeminiAnalyzer, build_analyzer
 from app.services.storage import FileStorage
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+log = logging.getLogger(__name__)
 
 
 def create_app(settings: Settings | None = None, analyzer: GeminiAnalyzer | None = None) -> FastAPI:
@@ -33,6 +34,9 @@ def create_app(settings: Settings | None = None, analyzer: GeminiAnalyzer | None
         storage=FileStorage(root=settings.data_dir),
         max_upload_bytes=settings.max_upload_bytes,
     )
+    interrupted = service.fail_interrupted()
+    if interrupted:
+        log.warning("marked %d analyses interrupted by the previous run as failed", interrupted)
 
     app = FastAPI(title="SiteGuard API", version="0.1.0")
     app.state.settings = settings

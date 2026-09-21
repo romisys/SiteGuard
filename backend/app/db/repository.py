@@ -1,7 +1,10 @@
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.db.models import Analysis
+from app.domain.models import AnalysisStatus
+
+_IN_FLIGHT = (AnalysisStatus.pending.value, AnalysisStatus.processing.value)
 
 
 class AnalysisRepository:
@@ -25,3 +28,13 @@ class AnalysisRepository:
     def delete(self, analysis: Analysis) -> None:
         self.session.delete(analysis)
         self.session.flush()
+
+    def mark_interrupted(self, message: str) -> int:
+        """Fail every pending/processing row (e.g. after a server restart). Returns the count."""
+        stmt = (
+            update(Analysis)
+            .where(Analysis.status.in_(_IN_FLIGHT))
+            .values(status=AnalysisStatus.failed.value, error_message=message)
+        )
+        result = self.session.execute(stmt)
+        return result.rowcount

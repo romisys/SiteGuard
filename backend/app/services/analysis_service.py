@@ -17,6 +17,7 @@ from app.services.storage import FileStorage, media_type_for
 log = logging.getLogger(__name__)
 
 MAX_ATTEMPTS = 2  # one automatic retry
+INTERRUPTED_MESSAGE = "Server restarted during analysis — click Retry"
 
 
 class AnalysisService:
@@ -115,6 +116,13 @@ class AnalysisService:
             self._storage.delete(analysis.storage_path)
             repo.delete(analysis)
             session.commit()
+
+    def fail_interrupted(self, message: str = INTERRUPTED_MESSAGE) -> int:
+        """Startup sweep: rows left pending/processing by a dead server can never finish."""
+        with self._session_factory() as session:
+            count = AnalysisRepository(session).mark_interrupted(message)
+            session.commit()
+            return count
 
     # ------------------------------------------------------------------- reads
 
