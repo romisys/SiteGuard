@@ -2,6 +2,7 @@
 
 No FastAPI, SQLAlchemy or google-genai imports here.
 """
+
 from enum import StrEnum
 
 from pydantic import BaseModel, Field

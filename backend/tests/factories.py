@@ -1,4 +1,5 @@
 """Builders for domain objects used across tests."""
+
 from app.domain.models import (
     AnalysisResult,
     Finding,

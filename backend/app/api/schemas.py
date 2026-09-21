@@ -1,4 +1,5 @@
 """HTTP response models and converters from DB rows."""
+
 from datetime import datetime
 
 from pydantic import BaseModel
@@ -58,9 +59,15 @@ class HealthResponse(BaseModel):
 
 def to_summary(a: Analysis) -> AnalysisSummary:
     return AnalysisSummary(
-        id=a.id, created_at=a.created_at, site_name=a.site_name, filename=a.filename,
-        media_type=a.media_type, status=a.status, risk_score=a.risk_score,
-        risk_level=a.risk_level, ppe_compliance_rate=a.ppe_compliance_rate,
+        id=a.id,
+        created_at=a.created_at,
+        site_name=a.site_name,
+        filename=a.filename,
+        media_type=a.media_type,
+        status=a.status,
+        risk_score=a.risk_score,
+        risk_level=a.risk_level,
+        ppe_compliance_rate=a.ppe_compliance_rate,
     )
 
 
@@ -68,7 +75,11 @@ def to_detail(a: Analysis) -> AnalysisDetail:
     result = AnalysisResult.model_validate(a.result_json) if a.result_json is not None else None
     return AnalysisDetail(
         **to_summary(a).model_dump(),
-        mime_type=a.mime_type, error_message=a.error_message, model=a.model,
-        input_tokens=a.input_tokens, output_tokens=a.output_tokens,
-        result=result, scores=score(result) if result is not None else None,
+        mime_type=a.mime_type,
+        error_message=a.error_message,
+        model=a.model,
+        input_tokens=a.input_tokens,
+        output_tokens=a.output_tokens,
+        result=result,
+        scores=score(result) if result is not None else None,
     )

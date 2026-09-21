@@ -37,7 +37,7 @@ class Analysis(Base):
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=_utcnow, nullable=False)
     site_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
-    media_type: Mapped[str] = mapped_column(String(10), nullable=False)   # image | video
+    media_type: Mapped[str] = mapped_column(String(10), nullable=False)  # image | video
     mime_type: Mapped[str] = mapped_column(String(50), nullable=False)
     storage_path: Mapped[str] = mapped_column(String(500), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")

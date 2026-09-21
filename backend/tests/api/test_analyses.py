@@ -10,9 +10,15 @@ def _upload(client, file=PNG, site_name="Tower A"):
 
 
 def test_upload_returns_202_and_completes_via_background_task(client, fake_analyzer):
-    fake_analyzer.queue.append(make_outcome(make_result(findings=[
-        make_finding(severity=5, likelihood=5, mitigation_effectiveness=0.8),
-    ])))
+    fake_analyzer.queue.append(
+        make_outcome(
+            make_result(
+                findings=[
+                    make_finding(severity=5, likelihood=5, mitigation_effectiveness=0.8),
+                ]
+            )
+        )
+    )
     r = _upload(client, MOV)
     assert r.status_code == 202
     body = r.json()
@@ -65,7 +71,13 @@ def test_list_returns_summaries_newest_first(client):
     rows = client.get("/api/analyses").json()
     assert [r["id"] for r in rows][:2] == [second, first]
     assert set(rows[0]) >= {
-        "id", "created_at", "site_name", "filename", "status", "risk_score", "risk_level",
+        "id",
+        "created_at",
+        "site_name",
+        "filename",
+        "status",
+        "risk_score",
+        "risk_level",
     }
     assert "result" not in rows[0]
 

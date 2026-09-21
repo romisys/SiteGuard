@@ -1,4 +1,5 @@
 """Gemini integration behind a small Protocol so the rest of the app never imports google-genai."""
+
 from __future__ import annotations
 
 import logging

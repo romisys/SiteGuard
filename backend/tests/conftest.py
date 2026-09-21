@@ -23,8 +23,12 @@ def _isolate_gemini_env(request, monkeypatch):
 
 @pytest.fixture
 def settings(tmp_path: Path) -> Settings:
-    return Settings(_env_file=None, data_dir=tmp_path / "data", gemini_api_key="test-key",
-                    max_upload_bytes=2 * 1024 * 1024)
+    return Settings(
+        _env_file=None,
+        data_dir=tmp_path / "data",
+        gemini_api_key="test-key",
+        max_upload_bytes=2 * 1024 * 1024,
+    )
 
 
 @pytest.fixture

@@ -17,7 +17,9 @@ def session():
 
 def _row(**overrides) -> Analysis:
     data = dict(
-        filename="clip.mov", media_type="video", mime_type="video/quicktime",
+        filename="clip.mov",
+        media_type="video",
+        mime_type="video/quicktime",
         storage_path="uploads/x.mov",
     )
     data.update(overrides)

@@ -1,4 +1,5 @@
 """Deterministic risk scoring. Gemini sees; this module does the math."""
+
 from statistics import mean
 
 from pydantic import BaseModel
@@ -6,8 +7,8 @@ from pydantic import BaseModel
 from app.domain.models import AnalysisResult, RiskLevel, WorkerAssessment
 
 MAX_FINDING_RISK = 25  # severity 5 x likelihood 5
-MAX_WEIGHT = 0.6       # the single worst hazard dominates
-MEAN_WEIGHT = 0.4      # ...but many hazards still push the score up
+MAX_WEIGHT = 0.6  # the single worst hazard dominates
+MEAN_WEIGHT = 0.4  # ...but many hazards still push the score up
 
 
 class FindingScore(BaseModel):

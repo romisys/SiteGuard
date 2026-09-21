@@ -1,4 +1,5 @@
 """Orchestrates one analysis: store file -> Gemini -> scoring -> persist."""
+
 from __future__ import annotations
 
 import logging
