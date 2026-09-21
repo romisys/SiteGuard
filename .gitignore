@@ -1,0 +1,26 @@
+# env / secrets
+.env
+*.env.local
+
+# data
+data/
+samples/
+Archive.zip
+__MACOSX/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# node
+node_modules/
+frontend/dist/
+frontend/coverage/
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/
