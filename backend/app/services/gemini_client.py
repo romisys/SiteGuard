@@ -81,6 +81,7 @@ class GoogleGeminiAnalyzer:
         file_timeout: float = 120.0,
         temperature: float = 0.2,
         request_timeout_ms: int = 300_000,
+        thinking_budget: int | None = 2048,
     ):
         from google import genai
         from google.genai import types
@@ -92,6 +93,7 @@ class GoogleGeminiAnalyzer:
         self._poll_interval = poll_interval
         self._file_timeout = file_timeout
         self._temperature = temperature
+        self._thinking_budget = thinking_budget
 
     def analyze(self, path: Path, mime_type: str, media_type: MediaType) -> GeminiOutcome:
         from google.genai import types
@@ -110,6 +112,11 @@ class GoogleGeminiAnalyzer:
                 response_mime_type="application/json",
                 response_schema=AnalysisResult,
                 temperature=self._temperature,
+                thinking_config=(
+                    types.ThinkingConfig(thinking_budget=self._thinking_budget)
+                    if self._thinking_budget is not None
+                    else None
+                ),
             )
             try:
                 response = self._client.models.generate_content(
@@ -191,7 +198,9 @@ def _describe_empty(response) -> str:
     return ", ".join(parts) or "no candidates"
 
 
-def build_analyzer(api_key: str | None, model: str) -> GeminiAnalyzer | None:
+def build_analyzer(
+    api_key: str | None, model: str, thinking_budget: int | None = 2048
+) -> GeminiAnalyzer | None:
     if not api_key:
         return None
-    return GoogleGeminiAnalyzer(api_key=api_key, model=model)
+    return GoogleGeminiAnalyzer(api_key=api_key, model=model, thinking_budget=thinking_budget)

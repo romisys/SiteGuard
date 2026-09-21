@@ -11,6 +11,7 @@ class Settings(BaseSettings):
 
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-2.5-flash"
+    gemini_thinking_budget: int = 2048
     data_dir: Path = Path("./data")
     max_upload_bytes: int = 100 * 1024 * 1024
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]

@@ -11,6 +11,7 @@ def test_defaults_without_env_file(tmp_path: Path):
     assert s.database_url == f"sqlite:///{tmp_path / 'siteguard.db'}"
     assert s.uploads_dir == tmp_path / "uploads"
     assert s.max_upload_bytes == 100 * 1024 * 1024
+    assert s.gemini_thinking_budget == 2048
 
 
 def test_key_marks_configured(tmp_path: Path):
@@ -24,3 +25,9 @@ def test_reads_env_vars(monkeypatch, tmp_path: Path):
     s = Settings(_env_file=None, data_dir=tmp_path)
     assert s.gemini_api_key == "from-env"
     assert s.gemini_model == "gemini-x"
+
+
+def test_thinking_budget_env_override(monkeypatch, tmp_path: Path):
+    monkeypatch.setenv("GEMINI_THINKING_BUDGET", "512")
+    s = Settings(_env_file=None, data_dir=tmp_path)
+    assert s.gemini_thinking_budget == 512

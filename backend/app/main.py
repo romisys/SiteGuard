@@ -21,7 +21,11 @@ def create_app(settings: Settings | None = None, analyzer: GeminiAnalyzer | None
     engine = make_engine(settings.database_url)
     init_db(engine)
     if analyzer is None:
-        analyzer = build_analyzer(settings.gemini_api_key, settings.gemini_model)
+        analyzer = build_analyzer(
+            settings.gemini_api_key,
+            settings.gemini_model,
+            thinking_budget=settings.gemini_thinking_budget,
+        )
 
     service = AnalysisService(
         session_factory=make_session_factory(engine),
