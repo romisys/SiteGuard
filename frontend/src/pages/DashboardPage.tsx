@@ -4,6 +4,7 @@ import { AnalysesTable } from '../components/dashboard/AnalysesTable'
 import { KpiCard } from '../components/dashboard/KpiCard'
 import { TrendChart } from '../components/dashboard/TrendChart'
 import { CategoryBar } from '../components/report/CategoryBar'
+import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { EmptyState } from '../components/ui/EmptyState'
 import { Skeleton } from '../components/ui/Skeleton'
@@ -33,6 +34,13 @@ export function DashboardPage() {
     return (
       <Card>
         <p role="alert" className="text-sm text-fg-strong">{(stats.error ?? analyses.error)?.message}</p>
+        <Button
+          variant="secondary"
+          className="mt-3"
+          onClick={() => { void stats.refetch(); void analyses.refetch() }}
+        >
+          Try again
+        </Button>
       </Card>
     )
   }

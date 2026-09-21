@@ -31,33 +31,44 @@ export function ReportPage() {
   const remove = useMutation({
     mutationFn: () => api.deleteAnalysis(id),
     onSuccess: () => {
+      queryClient.removeQueries({ queryKey: analysisKey(id) })
       queryClient.invalidateQueries({ queryKey: analysesKey })
       queryClient.invalidateQueries({ queryKey: statsKey })
       navigate('/')
     },
   })
 
+  function confirmDelete() {
+    if (window.confirm('Delete this analysis and its media file?')) remove.mutate()
+  }
+
   if (query.isPending) {
-    return <ReportSkeleton />
+    return <div aria-busy><ReportSkeleton /></div>
   }
 
   if (query.isError) {
-    const message = query.error instanceof ApiError && query.error.status === 404
-      ? 'Analysis not found.'
-      : query.error.message
+    const notFound = query.error instanceof ApiError && query.error.status === 404
+    const message = notFound ? 'Analysis not found.' : query.error.message
     return (
       <Card>
         <p className="text-sm text-fg-strong">{message}</p>
-        <Button variant="secondary" className="mt-3" onClick={() => navigate('/')}>Back to dashboard</Button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {!notFound && (
+            <Button variant="secondary" onClick={() => query.refetch()}>Try again</Button>
+          )}
+          <Button variant="secondary" onClick={() => navigate('/')}>Back to dashboard</Button>
+        </div>
       </Card>
     )
   }
 
   const analysis = query.data
+  const title = analysis.site_name ?? analysis.filename
 
   if (isActive(analysis.status)) {
     return (
       <div className="space-y-4">
+        <h1 className="text-xl font-semibold text-fg-strong">{title}</h1>
         <div role="status" className="flex items-center gap-3 rounded-lg border border-border bg-surface p-4 shadow-card">
           <Loader2 className="size-5 animate-spin text-accent" aria-hidden />
           <div>
@@ -72,21 +83,33 @@ export function ReportPage() {
     )
   }
 
-  if (analysis.status === 'failed' || !analysis.result || !analysis.scores) {
+  const failed = analysis.status === 'failed'
+
+  if (failed || !analysis.result || !analysis.scores) {
     return (
-      <Card title="Analysis failed">
-        <div role="alert" className="flex items-start gap-2 text-sm text-fg-strong">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-risk-critical" aria-hidden />
-          <span>{analysis.error_message ?? 'The analysis did not produce a result.'}</span>
-        </div>
-        <div className="mt-4 flex gap-2">
-          <Button onClick={() => retry.mutate()} loading={retry.isPending}>
-            <RefreshCw className="size-4" aria-hidden /> Retry
-          </Button>
-          <Button variant="danger" onClick={() => remove.mutate()} loading={remove.isPending}>Delete</Button>
-        </div>
-        {retry.error && <p role="alert" className="mt-2 text-sm text-danger">{retry.error.message}</p>}
-      </Card>
+      <div className="space-y-4">
+        <h1 className="text-xl font-semibold text-fg-strong">{title}</h1>
+        <Card title={failed ? 'Analysis failed' : 'Report unavailable'}>
+          <div role="alert" className="flex items-start gap-2 text-sm text-fg-strong">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-risk-critical" aria-hidden />
+            <span>
+              {failed
+                ? analysis.error_message ?? 'The analysis did not produce a result.'
+                : 'This analysis completed without a result.'}
+            </span>
+          </div>
+          <div className="mt-4 flex gap-2">
+            {failed && (
+              <Button onClick={() => retry.mutate()} loading={retry.isPending}>
+                <RefreshCw className="size-4" aria-hidden /> Retry
+              </Button>
+            )}
+            <Button variant="danger" onClick={confirmDelete} loading={remove.isPending}>Delete</Button>
+          </div>
+          {retry.error && <p role="alert" className="mt-2 text-sm text-danger">{retry.error.message}</p>}
+          {remove.error && <p role="alert" className="mt-2 text-sm text-danger">{remove.error.message}</p>}
+        </Card>
+      </div>
     )
   }
 
@@ -94,11 +117,8 @@ export function ReportPage() {
 
   return (
     <div className="space-y-4">
-      <ReportHeader
-        analysis={analysis}
-        deleting={remove.isPending}
-        onDelete={() => { if (window.confirm('Delete this analysis and its media file?')) remove.mutate() }}
-      />
+      <ReportHeader analysis={analysis} deleting={remove.isPending} onDelete={confirmDelete} />
+      {remove.error && <p role="alert" className="mt-2 text-sm text-danger">{remove.error.message}</p>}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card title="Risk score"><RiskGauge score={scores.risk_score} level={scores.risk_level} /></Card>

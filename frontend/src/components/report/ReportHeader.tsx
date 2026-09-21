@@ -17,9 +17,9 @@ export function ReportHeader({ analysis, onDelete, deleting }: Props) {
     <header className="grid gap-4 rounded-lg border border-border bg-surface p-4 shadow-card md:grid-cols-[240px_1fr]">
       <div className="overflow-hidden rounded-md bg-muted" style={{ aspectRatio: '16 / 10' }}>
         {analysis.media_type === 'video' ? (
-          <video src={mediaUrl} controls muted playsInline className="size-full object-cover" aria-label={`Video ${analysis.filename}`} />
+          <video src={mediaUrl} controls muted playsInline className="size-full object-contain" aria-label={`Video ${analysis.filename}`} />
         ) : (
-          <img src={mediaUrl} alt={`Site photo ${analysis.filename}`} className="size-full object-cover" />
+          <img src={mediaUrl} alt={`Site photo ${analysis.filename}`} className="size-full object-contain" />
         )}
       </div>
       <div className="flex min-w-0 flex-col gap-3">

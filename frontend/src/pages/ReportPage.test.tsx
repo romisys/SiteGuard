@@ -2,7 +2,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it, vi } from 'vitest'
-import { failedDetail, processingDetail } from '../test/fixtures'
+import { completedDetail, failedDetail, processingDetail } from '../test/fixtures'
 import { renderWithProviders } from '../test/render'
 import { server } from '../test/server'
 import { ReportPage } from './ReportPage'
@@ -48,6 +48,28 @@ describe('ReportPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Gemini quota exceeded')
     await userEvent.click(screen.getByRole('button', { name: /retry/i }))
     await waitFor(() => expect(screen.getByText(/analyzing/i)).toBeInTheDocument())
+  })
+
+  it('shows Report unavailable without Retry when a completed analysis has no result', async () => {
+    server.use(http.get('*/api/analyses/c1', () => HttpResponse.json({ ...completedDetail, id: 'c1', result: null, scores: null })))
+    renderReport('c1')
+    expect(await screen.findByText(/report unavailable/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument()
+  })
+
+  it('asks for confirmation before deleting a failed analysis', async () => {
+    let deleted = false
+    server.use(
+      http.get('*/api/analyses/f1', () => HttpResponse.json(failedDetail)),
+      http.delete('*/api/analyses/f1', () => { deleted = true; return new HttpResponse(null, { status: 204 }) }),
+    )
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    renderReport('f1')
+    await userEvent.click(await screen.findByRole('button', { name: /delete/i }))
+    expect(confirm).toHaveBeenCalledWith('Delete this analysis and its media file?')
+    expect(deleted).toBe(false)
+    confirm.mockRestore()
   })
 
   it('shows not found', async () => {

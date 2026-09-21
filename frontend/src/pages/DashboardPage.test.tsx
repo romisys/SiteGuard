@@ -10,7 +10,7 @@ describe('DashboardPage', () => {
   it('shows KPIs and the analyses table', async () => {
     renderWithProviders(<DashboardPage />)
     expect(await screen.findByText('Analyses')).toBeInTheDocument()
-    expect(screen.getByText('2')).toBeInTheDocument()            // total
+    expect(within(screen.getByRole('group', { name: 'Analyses' })).getByText('2')).toBeInTheDocument() // total
     expect(screen.getByText('54')).toBeInTheDocument()           // average score
     expect(screen.getByText('88%')).toBeInTheDocument()          // avg PPE compliance (0.875)
     const table = screen.getByRole('table', { name: /past analyses/i })
@@ -28,5 +28,12 @@ describe('DashboardPage', () => {
     renderWithProviders(<DashboardPage />)
     expect(await screen.findByText(/no analyses yet/i)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /run your first analysis/i })).toHaveAttribute('href', '/new')
+  })
+
+  it('offers Try again when loading fails', async () => {
+    server.use(http.get('*/api/stats', () => HttpResponse.json({ detail: 'boom' }, { status: 500 })))
+    renderWithProviders(<DashboardPage />)
+    expect(await screen.findByRole('alert')).toHaveTextContent('boom')
+    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument()
   })
 })

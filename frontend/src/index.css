@@ -69,6 +69,25 @@ body {
 
 @media print {
   @page { margin: 14mm; }
+  html.dark {
+    color-scheme: light;
+    --color-bg: #ffffff;
+    --color-surface: #ffffff;
+    --color-muted: #ebf0f5;
+    --color-border: #e2e8f0;
+    --color-fg: #334155;
+    --color-fg-strong: #0f172a;
+    --color-fg-muted: #64748b;
+    --color-accent: #c2410c;
+    --color-accent-hover: #9a3412;
+    --color-on-accent: #ffffff;
+    --color-risk-low: #16a34a;
+    --color-risk-moderate: #d97706;
+    --color-risk-high: #ea580c;
+    --color-risk-critical: #dc2626;
+    --color-danger: #dc2626;
+    --shadow-card: none;
+  }
   body { background: #fff; color: #0f172a; }
   .print-break { break-before: page; }
   a[href]::after { content: none; }
