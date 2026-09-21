@@ -9,8 +9,13 @@ from app.services.gemini_client import FakeAnalyzer
 
 
 @pytest.fixture(autouse=True)
-def _isolate_gemini_env(monkeypatch):
-    """The developer's shell exports GEMINI_API_KEY; tests must not see it."""
+def _isolate_gemini_env(request, monkeypatch):
+    """The developer's shell exports GEMINI_API_KEY; tests must not see it.
+
+    Integration-marked tests deliberately hit the real API, so they keep the env.
+    """
+    if request.node.get_closest_marker("integration"):
+        return
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("GEMINI_MODEL", raising=False)
     monkeypatch.delenv("DATA_DIR", raising=False)
