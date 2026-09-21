@@ -9,6 +9,7 @@ from app.domain.models import (
     RiskCategory,
     WorkerAssessment,
 )
+from app.services.gemini_client import GeminiOutcome, GeminiUsage
 
 
 def make_finding(**overrides) -> Finding:
@@ -51,9 +52,6 @@ def make_result(findings: list[Finding] | None = None, **overrides) -> AnalysisR
     )
     data.update(overrides)
     return AnalysisResult(**data)
-
-
-from app.services.gemini_client import GeminiOutcome, GeminiUsage  # noqa: E402
 
 
 def make_outcome(result: AnalysisResult | None = None, **usage_overrides) -> GeminiOutcome:

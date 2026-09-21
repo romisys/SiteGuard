@@ -31,7 +31,22 @@ def test_fake_raises_queued_exception(tmp_path: Path):
     assert outcome.usage.model == "fake-model"
 
 
-def test_fake_with_empty_queue_returns_default_outcome(tmp_path: Path):
+def test_fake_with_empty_queue_returns_configured_default(tmp_path: Path):
+    default = make_outcome()
+    fake = FakeAnalyzer(default=default)
+    assert fake.analyze(tmp_path / "a.png", "image/png", MediaType.image) is default
+    assert fake.analyze(tmp_path / "a.png", "image/png", MediaType.image) is default
+
+
+def test_fake_queue_takes_precedence_over_default(tmp_path: Path):
+    queued = make_outcome(input_tokens=1)
+    fake = FakeAnalyzer([queued], default=make_outcome(input_tokens=2))
+    assert fake.analyze(tmp_path / "a.png", "image/png", MediaType.image) is queued
+    assert fake.analyze(tmp_path / "a.png", "image/png", MediaType.image).usage.input_tokens == 2
+
+
+def test_bare_fake_with_empty_queue_raises(tmp_path: Path):
     fake = FakeAnalyzer()
-    outcome = fake.analyze(tmp_path / "a.png", "image/png", MediaType.image)
-    assert outcome.result.findings
+    with pytest.raises(AnalyzerError, match="queue is empty"):
+        fake.analyze(tmp_path / "a.png", "image/png", MediaType.image)
+    assert len(fake.calls) == 1

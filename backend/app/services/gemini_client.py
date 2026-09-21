@@ -51,18 +51,20 @@ class AnalyzeCall:
 class FakeAnalyzer:
     """Returns queued outcomes (or raises queued exceptions) in order; records calls.
 
-    With an empty queue it returns a sensible default result so simple tests need no setup.
+    With an empty queue it returns `default` when one is configured, otherwise it raises so a
+    test that forgot to queue an outcome fails loudly instead of passing by accident.
     """
 
     queue: list[GeminiOutcome | Exception] = field(default_factory=list)
     calls: list[AnalyzeCall] = field(default_factory=list)
+    default: GeminiOutcome | None = None
 
     def analyze(self, path: Path, mime_type: str, media_type: MediaType) -> GeminiOutcome:
         self.calls.append(AnalyzeCall(path, mime_type, media_type))
         if not self.queue:
-            from tests.factories import make_outcome  # test-only helper; fine for a fake
-
-            return make_outcome()
+            if self.default is not None:
+                return self.default
+            raise AnalyzerError("FakeAnalyzer queue is empty and no default outcome was configured")
         item = self.queue.pop(0)
         if isinstance(item, Exception):
             raise item

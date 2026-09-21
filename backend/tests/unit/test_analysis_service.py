@@ -27,7 +27,7 @@ def session_factory(tmp_path: Path) -> sessionmaker:
 
 @pytest.fixture
 def fake() -> FakeAnalyzer:
-    return FakeAnalyzer()
+    return FakeAnalyzer(default=make_outcome())
 
 
 @pytest.fixture

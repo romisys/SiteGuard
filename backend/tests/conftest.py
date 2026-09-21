@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from app.config import Settings
 from app.main import create_app
 from app.services.gemini_client import FakeAnalyzer
+from tests.factories import make_outcome
 
 
 @pytest.fixture(autouse=True)
@@ -33,7 +34,7 @@ def settings(tmp_path: Path) -> Settings:
 
 @pytest.fixture
 def fake_analyzer() -> FakeAnalyzer:
-    return FakeAnalyzer()
+    return FakeAnalyzer(default=make_outcome())
 
 
 @pytest.fixture
