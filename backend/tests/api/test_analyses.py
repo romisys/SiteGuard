@@ -48,6 +48,13 @@ def test_upload_rejects_oversize(client):
     assert r.status_code == 413
 
 
+def test_upload_oversize_rejected_before_read(client, fake_analyzer):
+    r = _upload(client, ("big.png", b"x" * (2 * 1024 * 1024 + 1), "image/png"))
+    assert r.status_code == 413
+    assert fake_analyzer.calls == []
+    assert client.get("/api/analyses").json() == []
+
+
 def test_get_missing_is_404(client):
     assert client.get("/api/analyses/nope").status_code == 404
 

@@ -1,8 +1,10 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
+from starlette.concurrency import run_in_threadpool
 
-from app.api.deps import get_service
+from app.api.deps import get_service, get_settings
 from app.api.schemas import AnalysisDetail, AnalysisSummary, CreatedResponse, to_detail, to_summary
+from app.config import Settings
 from app.services.analysis_service import AnalysisService
 from app.services.errors import AnalysisNotFound, FileTooLarge, InvalidState, UnsupportedMediaType
 
@@ -15,10 +17,20 @@ async def create_analysis(
     file: UploadFile = File(...),
     site_name: str | None = Form(default=None),
     service: AnalysisService = Depends(get_service),
+    settings: Settings = Depends(get_settings),
 ) -> CreatedResponse:
+    # Reject oversize uploads from the multipart metadata before loading the body into memory.
+    if file.size is not None and file.size > settings.max_upload_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File is {file.size / 1024 / 1024:.1f} MB; limit is "
+            f"{settings.max_upload_bytes // 1024 // 1024} MB",
+        )
     data = await file.read()
     try:
-        analysis = service.create(
+        # SQLite commit + disk write of up to max_upload_bytes: keep it off the event loop.
+        analysis = await run_in_threadpool(
+            service.create,
             filename=file.filename or "upload",
             mime_type=file.content_type or "",
             data=data,
