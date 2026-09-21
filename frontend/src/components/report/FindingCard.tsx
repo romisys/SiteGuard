@@ -41,16 +41,18 @@ export function FindingCard({ finding, risk, residualRisk }: Props) {
             <Chip>Likelihood {finding.likelihood}/5</Chip>
           </dd>
         </div>
-        <div className="flex items-start gap-2 text-fg-muted">
-          <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden />
+        <div className="text-fg-muted">
           <dt className="sr-only">Evidence</dt>
-          <dd>
-            {finding.evidence}
-            {finding.timestamp_seconds !== null && (
-              <span className="ml-2 inline-flex items-center gap-1 tabular font-mono text-xs">
-                <Clock className="size-3" aria-hidden />{formatTimestamp(finding.timestamp_seconds)}
-              </span>
-            )}
+          <dd className="flex items-start gap-2">
+            <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <span>
+              {finding.evidence}
+              {finding.timestamp_seconds !== null && (
+                <span className="ml-2 inline-flex items-center gap-1 tabular font-mono text-xs">
+                  <Clock className="size-3" aria-hidden />{formatTimestamp(finding.timestamp_seconds)}
+                </span>
+              )}
+            </span>
           </dd>
         </div>
       </dl>

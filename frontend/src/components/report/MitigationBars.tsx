@@ -1,4 +1,4 @@
-import { ArrowDownRight } from 'lucide-react'
+import { ArrowDownRight, ShieldCheck } from 'lucide-react'
 import type { ScoreSummary } from '../../api/types'
 import { LEVELS } from '../../lib/risk'
 
@@ -21,27 +21,35 @@ export function MitigationBars({ scores }: { scores: ScoreSummary }) {
   const residual = LEVELS[scores.residual_level]
   const CurrentIcon = current.icon
   const ResidualIcon = residual.icon
+  const nothingToMitigate = scores.reduction === 0 && scores.risk_score === 0
   return (
     <div className="space-y-4">
       <Bar label="Current risk" value={scores.risk_score} fill={current.fill} />
       <Bar label="After mitigation" value={scores.residual_score} fill={residual.fill} />
-      <p className="flex items-start gap-2 rounded-md bg-muted p-3 text-sm text-fg-strong">
-        <ArrowDownRight className="mt-0.5 size-4 shrink-0 text-risk-low" aria-hidden />
-        <span>
-          Applying every recommendation would <strong>reduce risk by {scores.reduction} points</strong>{' '}
-          <span className="tabular font-mono">({scores.risk_score}% → {scores.residual_score}%)</span>, from{' '}
-          <span className={`inline-flex items-center gap-1 font-semibold ${current.text}`}>
-            <CurrentIcon className="size-3.5" aria-hidden />
-            {current.label}
-          </span>{' '}
-          to{' '}
-          <span className={`inline-flex items-center gap-1 font-semibold ${residual.text}`}>
-            <ResidualIcon className="size-3.5" aria-hidden />
-            {residual.label}
+      {nothingToMitigate ? (
+        <p className="flex items-start gap-2 rounded-md bg-muted p-3 text-sm text-fg-strong">
+          <ShieldCheck className="mt-0.5 size-4 shrink-0 text-risk-low" aria-hidden />
+          <span>No hazards found — nothing to mitigate.</span>
+        </p>
+      ) : (
+        <p className="flex items-start gap-2 rounded-md bg-muted p-3 text-sm text-fg-strong">
+          <ArrowDownRight className="mt-0.5 size-4 shrink-0 text-risk-low" aria-hidden />
+          <span>
+            Applying every recommendation would <strong>reduce risk by {scores.reduction} points</strong>{' '}
+            <span className="tabular font-mono">({scores.risk_score}% → {scores.residual_score}%)</span>, from{' '}
+            <span className={`inline-flex items-center gap-1 font-semibold ${current.text}`}>
+              <CurrentIcon className="size-3.5" aria-hidden />
+              {current.label}
+            </span>{' '}
+            to{' '}
+            <span className={`inline-flex items-center gap-1 font-semibold ${residual.text}`}>
+              <ResidualIcon className="size-3.5" aria-hidden />
+              {residual.label}
+            </span>
+            .
           </span>
-          .
-        </span>
-      </p>
+        </p>
+      )}
     </div>
   )
 }

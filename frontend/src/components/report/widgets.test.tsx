@@ -12,6 +12,14 @@ describe('RiskGauge', () => {
     expect(screen.getByText('Critical')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: /risk score 88 out of 100, critical/i })).toBeInTheDocument()
   })
+
+  it('renders score 0 without a filled arc', () => {
+    render(<RiskGauge score={0} level="Low" />)
+    expect(screen.getByText('0')).toBeInTheDocument()
+    expect(screen.getByText('Low')).toBeInTheDocument()
+    // only the track arc; no zero-length filled arc (its round linecap would draw a stray dot)
+    expect(screen.getByRole('img', { name: /risk score 0 out of 100, low/i }).querySelectorAll('path')).toHaveLength(1)
+  })
 })
 
 describe('MitigationBars', () => {
@@ -21,6 +29,17 @@ describe('MitigationBars', () => {
     expect(screen.getByText(/after mitigation/i)).toBeInTheDocument()
     expect(screen.getByText(/reduce risk by 72 points/i)).toBeInTheDocument()
     expect(screen.getByText(/88% → 16%/)).toBeInTheDocument()
+  })
+
+  it('says there is nothing to mitigate when no hazards were found', () => {
+    render(
+      <MitigationBars
+        scores={{ ...completedDetail.scores!, risk_score: 0, residual_score: 0, reduction: 0, risk_level: 'Low', residual_level: 'Low', per_finding: [] }}
+      />,
+    )
+    expect(screen.getByText(/no hazards found/i)).toBeInTheDocument()
+    expect(screen.queryByText(/reduce risk by/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/current risk/i)).toBeInTheDocument()
   })
 })
 
@@ -34,6 +53,20 @@ describe('WorkersPanel', () => {
     expect(screen.getByText('2/2')).toBeInTheDocument()
     expect(screen.getByText(/75%/)).toBeInTheDocument()
     expect(screen.getByText('Leaning over unprotected edge')).toBeInTheDocument()
+  })
+
+  it('marks a 0/0 PPE item as not assessed and shows notes', () => {
+    render(
+      <WorkersPanel
+        workers={{ workers_visible: 1, ppe: [{ item: 'harness', compliant: 0, non_compliant: 0, notes: 'Not visible from this angle' }], unsafe_behaviours: [] }}
+        complianceRate={null}
+      />,
+    )
+    expect(screen.getByText('Harness')).toBeInTheDocument()
+    expect(screen.getByText('0/0')).toBeInTheDocument()
+    expect(screen.getByText('not assessed')).toBeInTheDocument()
+    expect(screen.queryByText('all compliant')).not.toBeInTheDocument()
+    expect(screen.getByText(/Not visible from this angle/)).toBeInTheDocument()
   })
 
   it('handles no workers', () => {

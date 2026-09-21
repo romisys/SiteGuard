@@ -9,21 +9,26 @@ export function FindingsList({ result, scores }: { result: AnalysisResult; score
   const [filter, setFilter] = useState<Filter>('all')
 
   const rows = useMemo(() => {
-    const scored = result.findings.map((finding, index) => ({
-      finding,
-      index,
-      risk: scores.per_finding[index]?.risk ?? finding.severity * finding.likelihood,
-      residualRisk: scores.per_finding[index]?.residual_risk ?? 0,
-    }))
+    const byIndex = new Map(scores.per_finding.map((p) => [p.index, p]))
+    const scored = result.findings.map((finding, index) => {
+      const score = byIndex.get(index)
+      return {
+        finding,
+        index,
+        risk: score?.risk ?? finding.severity * finding.likelihood,
+        residualRisk: score?.residual_risk ?? 0,
+      }
+    })
     return scored.sort((a, b) => b.risk - a.risk)
   }, [result.findings, scores.per_finding])
 
   const visible = filter === 'all' ? rows : rows.filter((r) => r.finding.subject === filter)
+  const countBy = (subject: FindingSubject) => rows.filter((r) => r.finding.subject === subject).length
   const counts: Record<Filter, number> = {
     all: rows.length,
-    worker: scores.findings_by_subject.worker ?? 0,
-    site: scores.findings_by_subject.site ?? 0,
-    equipment: scores.findings_by_subject.equipment ?? 0,
+    worker: countBy('worker'),
+    site: countBy('site'),
+    equipment: countBy('equipment'),
   }
   const filters: { key: Filter; label: string }[] = [
     { key: 'all', label: 'All' },
@@ -54,6 +59,9 @@ export function FindingsList({ result, scores }: { result: AnalysisResult; score
           )
         })}
       </div>
+      {filter !== 'all' && (
+        <p className="hidden text-xs text-fg-muted print:block">Filtered: {filters.find((f) => f.key === filter)?.label} only</p>
+      )}
       {visible.length === 0 ? (
         <p className="text-sm text-fg-muted">No findings for this filter.</p>
       ) : (

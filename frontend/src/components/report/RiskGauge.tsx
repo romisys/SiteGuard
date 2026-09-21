@@ -24,15 +24,17 @@ export function RiskGauge({ score, level, caption = 'Overall risk' }: Props) {
         aria-label={`Risk score ${score} out of 100, ${meta.label}`}
       >
         <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="var(--color-muted)" strokeWidth="16" strokeLinecap="round" />
-        <path
-          d="M 20 100 A 80 80 0 0 1 180 100"
-          fill="none"
-          stroke={meta.cssVar}
-          strokeWidth="16"
-          strokeLinecap="round"
-          strokeDasharray={`${filled} ${circumference}`}
-          style={{ transition: 'stroke-dasharray 300ms ease-out' }}
-        />
+        {score > 0 && (
+          <path
+            d="M 20 100 A 80 80 0 0 1 180 100"
+            fill="none"
+            stroke={meta.cssVar}
+            strokeWidth="16"
+            strokeLinecap="round"
+            strokeDasharray={`${filled} ${circumference}`}
+            style={{ transition: 'stroke-dasharray 300ms ease-out' }}
+          />
+        )}
         <text x="100" y="92" textAnchor="middle" className="fill-fg-strong font-mono tabular" style={{ fontSize: 44, fontWeight: 600 }}>
           {score}
         </text>

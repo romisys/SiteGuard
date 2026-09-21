@@ -15,7 +15,7 @@ export function CategoryBar({ counts }: { counts: Partial<Record<RiskCategory, n
     <div>
       <div style={{ height: Math.max(160, data.length * 32) }} aria-hidden>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
+          <BarChart data={data} layout="vertical" accessibilityLayer={false} margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
             <CartesianGrid horizontal={false} stroke="var(--color-border)" />
             <XAxis type="number" allowDecimals={false} tick={{ fill: 'var(--color-fg-muted)', fontSize: 12 }} axisLine={false} tickLine={false} />
             <YAxis type="category" dataKey="name" width={110} tick={{ fill: 'var(--color-fg)', fontSize: 12 }} axisLine={false} tickLine={false} />

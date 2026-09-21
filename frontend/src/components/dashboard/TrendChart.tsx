@@ -9,7 +9,7 @@ export function TrendChart({ trend }: { trend: TrendPoint[] }) {
     <div>
       <div style={{ height: 220 }} aria-hidden>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ left: 0, right: 16, top: 8, bottom: 0 }}>
+          <LineChart data={data} accessibilityLayer={false} margin={{ left: 0, right: 16, top: 8, bottom: 0 }}>
             <CartesianGrid vertical={false} stroke="var(--color-border)" />
             <XAxis dataKey="date" tick={{ fill: 'var(--color-fg-muted)', fontSize: 12 }} axisLine={false} tickLine={false} />
             <YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} width={32} tick={{ fill: 'var(--color-fg-muted)', fontSize: 12 }} axisLine={false} tickLine={false} />
