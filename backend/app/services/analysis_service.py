@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -17,6 +18,7 @@ from app.services.storage import FileStorage, media_type_for
 log = logging.getLogger(__name__)
 
 MAX_ATTEMPTS = 2  # one automatic retry
+RETRY_DELAY_SECONDS = 2.0  # pause before the retry so a transient 429/503 has time to clear
 INTERRUPTED_MESSAGE = "Server restarted during analysis — click Retry"
 
 
@@ -27,11 +29,13 @@ class AnalysisService:
         analyzer: GeminiAnalyzer | None,
         storage: FileStorage,
         max_upload_bytes: int,
+        retry_delay: float = RETRY_DELAY_SECONDS,
     ):
         self._session_factory = session_factory
         self._analyzer = analyzer
         self._storage = storage
         self._max_upload_bytes = max_upload_bytes
+        self._retry_delay = retry_delay
 
     # ------------------------------------------------------------------ writes
 
@@ -160,5 +164,7 @@ class AnalysisService:
                 log.warning(
                     "attempt %d/%d for %s failed: %s", attempt, MAX_ATTEMPTS, analysis.id, exc
                 )
+                if attempt < MAX_ATTEMPTS:
+                    time.sleep(self._retry_delay)
         assert last_error is not None
         raise last_error

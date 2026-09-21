@@ -37,6 +37,7 @@ def service(tmp_path: Path, session_factory, fake) -> AnalysisService:
         analyzer=fake,
         storage=FileStorage(root=tmp_path),
         max_upload_bytes=1024,
+        retry_delay=0,
     )
 
 
@@ -89,6 +90,46 @@ def test_run_retries_once_on_analyzer_error(service, fake):
     service.run(a.id)
     assert service.get(a.id).status == "completed"
     assert len(fake.calls) == 2
+
+
+def test_run_sleeps_between_attempts(tmp_path, session_factory, fake, monkeypatch):
+    slept: list[float] = []
+    monkeypatch.setattr("app.services.analysis_service.time.sleep", slept.append)
+    service = AnalysisService(
+        session_factory=session_factory,
+        analyzer=fake,
+        storage=FileStorage(root=tmp_path),
+        max_upload_bytes=1024,
+        retry_delay=1.5,
+    )
+    fake.queue.extend([AnalyzerError("flaky"), make_outcome()])
+    a = service.create(filename="x.png", mime_type="image/png", data=b"abc", site_name=None)
+    service.run(a.id)
+    assert service.get(a.id).status == "completed"
+    assert slept == [1.5]
+
+
+def test_run_does_not_sleep_after_final_attempt(service, fake, monkeypatch):
+    slept: list[float] = []
+    monkeypatch.setattr("app.services.analysis_service.time.sleep", slept.append)
+    fake.queue.extend([AnalyzerError("a"), AnalyzerError("b")])
+    a = service.create(filename="x.png", mime_type="image/png", data=b"abc", site_name=None)
+    service.run(a.id)
+    assert service.get(a.id).status == "failed"
+    assert slept == [0]  # retry_delay=0 in the fixture; one sleep between two attempts
+
+
+def test_retry_delay_defaults_to_module_constant(tmp_path, session_factory, fake):
+    from app.services.analysis_service import RETRY_DELAY_SECONDS
+
+    service = AnalysisService(
+        session_factory=session_factory,
+        analyzer=fake,
+        storage=FileStorage(root=tmp_path),
+        max_upload_bytes=1024,
+    )
+    assert RETRY_DELAY_SECONDS == 2.0
+    assert service._retry_delay == RETRY_DELAY_SECONDS
 
 
 def test_run_fails_after_second_error(service, fake):

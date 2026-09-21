@@ -40,5 +40,7 @@ def fake_analyzer() -> FakeAnalyzer:
 @pytest.fixture
 def client(settings: Settings, fake_analyzer: FakeAnalyzer):
     app = create_app(settings=settings, analyzer=fake_analyzer)
+    # create_app uses the production retry delay; API tests should not wait 2s per failure.
+    app.state.service._retry_delay = 0
     with TestClient(app) as c:
         yield c
