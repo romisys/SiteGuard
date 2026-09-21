@@ -79,10 +79,14 @@ class GoogleGeminiAnalyzer:
         poll_interval: float = 2.0,
         file_timeout: float = 120.0,
         temperature: float = 0.2,
+        request_timeout_ms: int = 300_000,
     ):
         from google import genai
+        from google.genai import types
 
-        self._client = genai.Client(api_key=api_key)
+        self._client = genai.Client(
+            api_key=api_key, http_options=types.HttpOptions(timeout=request_timeout_ms)
+        )
         self._model = model
         self._poll_interval = poll_interval
         self._file_timeout = file_timeout
@@ -115,20 +119,31 @@ class GoogleGeminiAnalyzer:
             except Exception as exc:  # SDK raises many types; normalise
                 raise AnalyzerError(f"Gemini request failed: {exc}") from exc
 
-            text = response.text or ""
+            text = response.text
+            if text is None:
+                raise InvalidModelOutput(f"Gemini returned no text ({_describe_empty(response)})")
             try:
                 result = AnalysisResult.model_validate_json(text)
             except ValidationError as exc:
-                log.warning("Gemini returned invalid JSON: %s", text[:500])
+                log.warning(
+                    "Gemini returned invalid JSON (%s): %s", _describe_empty(response), text[:500]
+                )
                 raise InvalidModelOutput(f"Gemini output did not match schema: {exc}") from exc
 
             usage = response.usage_metadata
+            candidates_tokens = getattr(usage, "candidates_token_count", None)
+            thoughts_tokens = getattr(usage, "thoughts_token_count", None)
+            output_tokens = (
+                (candidates_tokens or 0) + (thoughts_tokens or 0)
+                if candidates_tokens is not None or thoughts_tokens is not None
+                else None
+            )
             return GeminiOutcome(
                 result=result,
                 usage=GeminiUsage(
                     model=self._model,
                     input_tokens=getattr(usage, "prompt_token_count", None),
-                    output_tokens=getattr(usage, "candidates_token_count", None),
+                    output_tokens=output_tokens,
                 ),
             )
         finally:
@@ -153,10 +168,26 @@ class GoogleGeminiAnalyzer:
             if time.monotonic() > deadline:
                 raise AnalyzerError("Gemini took too long to process the video (timeout)")
             time.sleep(self._poll_interval)
-            uploaded = self._client.files.get(name=uploaded.name)
+            try:
+                uploaded = self._client.files.get(name=uploaded.name)
+            except Exception as exc:
+                raise AnalyzerError(f"Polling Gemini file state failed: {exc}") from exc
         if uploaded.state and uploaded.state.name == "FAILED":
             raise AnalyzerError("Gemini could not process the video file")
         return uploaded
+
+
+def _describe_empty(response) -> str:
+    feedback = getattr(response, "prompt_feedback", None)
+    block = getattr(feedback, "block_reason", None)
+    candidates = getattr(response, "candidates", None) or []
+    finish = getattr(candidates[0], "finish_reason", None) if candidates else None
+    parts = []
+    if block:
+        parts.append(f"block_reason={getattr(block, 'name', block)}")
+    if finish:
+        parts.append(f"finish_reason={getattr(finish, 'name', finish)}")
+    return ", ".join(parts) or "no candidates"
 
 
 def build_analyzer(api_key: str | None, model: str) -> GeminiAnalyzer | None:
