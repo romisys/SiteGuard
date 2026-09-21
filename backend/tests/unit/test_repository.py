@@ -1,17 +1,16 @@
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 from app.db.models import Analysis
 from app.db.repository import AnalysisRepository
-from app.db.session import init_db
+from app.db.session import init_db, make_session_factory
 
 
 @pytest.fixture
 def session():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     init_db(engine)
-    factory = sessionmaker(bind=engine)
+    factory = make_session_factory(engine)
     with factory() as s:
         yield s
 
@@ -67,3 +66,15 @@ def test_result_json_roundtrip(session):
     fetched = repo.get(row.id)
     assert fetched.result_json == {"findings": [], "scene_summary": "x"}
     assert fetched.risk_score == 12
+
+
+def test_created_at_is_utc_aware_after_reload(session):
+    from datetime import UTC
+
+    repo = AnalysisRepository(session)
+    row = repo.add(_row())
+    session.commit()
+    session.expire_all()
+    reloaded = repo.get(row.id)
+    assert reloaded.created_at.tzinfo is not None
+    assert reloaded.created_at.utcoffset() == UTC.utcoffset(None)
