@@ -11,14 +11,14 @@ export const findingHelmet: Finding = {
 export const findingEdge: Finding = {
   subject: 'site', category: 'fall_protection', title: 'Unprotected slab edge',
   description: 'Open slab edge with no guardrail.', evidence: 'Right side, 2nd floor',
-  timestamp_seconds: 7, severity: 5, likelihood: 4, recommendation: 'Install guardrails and toe boards.',
+  timestamp_seconds: 7, severity: 5, likelihood: 5, recommendation: 'Install guardrails and toe boards.',
   required_equipment: ['guardrail system'], mitigation_effectiveness: 0.9,
 }
 
 export const findingCable: Finding = {
   subject: 'equipment', category: 'electrical', title: 'Extension cable in water',
   description: 'Power cable running through a puddle.', evidence: 'Ground floor entrance',
-  timestamp_seconds: null, severity: 4, likelihood: 2, recommendation: 'Reroute cable overhead.',
+  timestamp_seconds: null, severity: 5, likelihood: 3, recommendation: 'Reroute cable overhead.',
   required_equipment: ['cable hooks'], mitigation_effectiveness: 0.7,
 }
 
@@ -47,8 +47,8 @@ export const completedDetail: AnalysisDetail = {
     ppe_compliance_rate: 0.75,
     per_finding: [
       { index: 0, risk: 12, residual_risk: 2.4 },
-      { index: 1, risk: 20, residual_risk: 2 },
-      { index: 2, risk: 8, residual_risk: 2.4 },
+      { index: 1, risk: 25, residual_risk: 2.5 },
+      { index: 2, risk: 15, residual_risk: 4.5 },
     ],
   },
 }
@@ -76,7 +76,7 @@ export const emptyStats: Stats = {
 
 export const stats: Stats = {
   total: 2, completed: 2, average_score: 54, critical_count: 1, average_ppe_compliance: 0.875,
-  findings_by_category: { ppe: 2, fall_protection: 1 }, findings_by_subject: { worker: 2, site: 1 },
+  findings_by_category: { ppe: 2, fall_protection: 1, electrical: 1 }, findings_by_subject: { worker: 2, site: 1, equipment: 1 },
   trend: [{ date: '2026-09-20T10:00:00Z', score: 20 }, { date: '2026-09-21T10:00:00Z', score: 88 }],
 }
 

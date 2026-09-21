@@ -1,22 +1,21 @@
 import '@testing-library/jest-dom/vitest'
-import { afterAll, afterEach, beforeAll } from 'vitest'
+import { Blob as NodeBlob, File as NodeFile } from 'node:buffer'
+import { afterAll, afterEach, beforeAll, vi } from 'vitest'
 import { server } from './server'
 
-// jsdom's File/Blob/FormData are not interoperable with Node's fetch (undici). Vitest's jsdom
-// environment bridges them by converting jsdom Files to Node Blobs, but that drops file names, so
-// multipart uploads reach MSW as filename="blob". Replace the globals with Node's classes so bodies
-// pass through untouched. defineProperty (not assignment) keeps the jsdom window's own classes, so
-// vitest's bridge no longer matches and stays out of the way. Node's classes are taken from a parsed
-// Response body rather than node:buffer, which keeps @types/node out of the app tsconfig.
-async function useNodeBodyClasses() {
-  const body = '--b\r\nContent-Disposition: form-data; name="f"; filename="f"\r\n\r\n\r\n--b--\r\n'
-  const parsed = await new Response(body, { headers: { 'content-type': 'multipart/form-data; boundary=b' } }).formData()
-  const NodeFile = (parsed.get('f') as File).constructor
-  const classes = { FormData: parsed.constructor, File: NodeFile, Blob: Object.getPrototypeOf(NodeFile) }
-  for (const [key, value] of Object.entries(classes)) {
-    Object.defineProperty(globalThis, key, { value, configurable: true, writable: true })
-  }
-}
+// jsdom's File/Blob/FormData are not interoperable with Node's fetch (undici), which stays Node's in
+// the jsdom environment. vitest 5 + jsdom 29 bridge the gap by converting jsdom Files into Node Blobs
+// before `new Request()`, but the bridge corrupts multipart bodies: the file name becomes "blob" and
+// the bytes become "undefined", so uploads never reach MSW intact. Replace the globals with Node's
+// classes so bodies pass through untouched. defineProperty (not assignment) leaves the jsdom window's
+// own classes in place, so the bridge's instanceof checks no longer match and it stays out of the way.
+// This runs at module scope (top-level await) so test modules never capture jsdom's classes.
+// Consequence: jsdom's FileReader rejects Node Files, so previews must use URL.createObjectURL.
+// Remove once fixed upstream: https://github.com/vitest-dev/vitest/issues/9260 and
+// https://github.com/vitest-dev/vitest/issues/11294
+const NodeFormData = (await new Response(new URLSearchParams('a=b')).formData()).constructor
+for (const [k, v] of Object.entries({ FormData: NodeFormData, File: NodeFile, Blob: NodeBlob }))
+  Object.defineProperty(globalThis, k, { value: v, configurable: true, writable: true })
 
 // Recharts ResponsiveContainer needs ResizeObserver; jsdom has none.
 class ResizeObserverStub {
@@ -26,8 +25,9 @@ class ResizeObserverStub {
 }
 globalThis.ResizeObserver = globalThis.ResizeObserver ?? (ResizeObserverStub as unknown as typeof ResizeObserver)
 
-// jsdom has no scrollTo / matchMedia
-window.scrollTo = window.scrollTo ?? (() => {})
+// jsdom defines scrollTo as a "not implemented" function that logs errors, so replace it outright.
+window.scrollTo = vi.fn()
+// jsdom has no matchMedia
 window.matchMedia =
   window.matchMedia ??
   ((query: string) => ({
@@ -36,9 +36,6 @@ window.matchMedia =
     addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => false,
   }))
 
-beforeAll(async () => {
-  await useNodeBodyClasses()
-  server.listen({ onUnhandledRequest: 'error' })
-})
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 afterEach(() => server.resetHandlers())
 afterAll(() => server.close())
