@@ -156,12 +156,13 @@ class GoogleGeminiAnalyzer:
             )
         finally:
             if uploaded is not None:
-                try:
-                    self._client.files.delete(name=uploaded.name)
-                except Exception:  # best effort cleanup
-                    log.debug("Could not delete uploaded file %s", uploaded.name)
+                self._delete_uploaded(uploaded.name)
 
     def _upload_and_wait(self, path: Path, mime_type: str):
+        """Upload a video and block until Gemini reports it ACTIVE.
+
+        The file is deleted again if processing fails or times out, so nothing leaks.
+        """
         from google.genai import types
 
         try:
@@ -171,18 +172,28 @@ class GoogleGeminiAnalyzer:
         except Exception as exc:
             raise AnalyzerError(f"Video upload to Gemini failed: {exc}") from exc
 
-        deadline = time.monotonic() + self._file_timeout
-        while uploaded.state and uploaded.state.name == "PROCESSING":
-            if time.monotonic() > deadline:
-                raise AnalyzerError("Gemini took too long to process the video (timeout)")
-            time.sleep(self._poll_interval)
-            try:
-                uploaded = self._client.files.get(name=uploaded.name)
-            except Exception as exc:
-                raise AnalyzerError(f"Polling Gemini file state failed: {exc}") from exc
-        if uploaded.state and uploaded.state.name == "FAILED":
-            raise AnalyzerError("Gemini could not process the video file")
+        try:
+            deadline = time.monotonic() + self._file_timeout
+            while uploaded.state and uploaded.state.name == "PROCESSING":
+                if time.monotonic() > deadline:
+                    raise AnalyzerError("Gemini took too long to process the video (timeout)")
+                time.sleep(self._poll_interval)
+                try:
+                    uploaded = self._client.files.get(name=uploaded.name)
+                except Exception as exc:
+                    raise AnalyzerError(f"Polling Gemini file state failed: {exc}") from exc
+            if uploaded.state and uploaded.state.name == "FAILED":
+                raise AnalyzerError("Gemini could not process the video file")
+        except Exception:
+            self._delete_uploaded(uploaded.name)
+            raise
         return uploaded
+
+    def _delete_uploaded(self, name: str) -> None:
+        try:
+            self._client.files.delete(name=name)
+        except Exception:  # best effort cleanup
+            log.debug("Could not delete uploaded file %s", name)
 
 
 def _describe_empty(response) -> str:
