@@ -48,15 +48,28 @@ Every unit answers: what it does, how to use it, what it depends on. The API nev
 
 ## 4. Gemini contract
 
-The prompt instructs Gemini to act as a certified construction safety inspector and return JSON matching `AnalysisResult` (passed as `response_schema`, `response_mime_type="application/json"`).
+The prompt instructs Gemini to act as a certified construction safety inspector and return JSON matching `AnalysisResult` (passed as `response_schema`, `response_mime_type="application/json"`). The prompt explicitly asks for two passes: (1) **people** — every visible worker, their PPE (helmet, hi-vis vest, harness where at height, gloves, boots, eye protection) and unsafe acts; (2) **site & equipment** — structural, scaffolding, electrical, housekeeping, machinery hazards. Every missing PPE item or unsafe act must produce a `Finding` with `subject=worker` so it counts toward the score.
 
 ```
 AnalysisResult
   scene_summary: str
+  workers: WorkerAssessment
   positive_observations: list[str]
   findings: list[Finding]
 
+WorkerAssessment                  # explicit people check, separate from site conditions
+  workers_visible: int
+  ppe: list[PpeCheck]             # one entry per PPE item that can be judged from the footage
+  unsafe_behaviours: list[str]    # e.g. "worker standing on top rung of ladder"
+
+PpeCheck
+  item: PpeItem                   # helmet | hi_vis_vest | harness | gloves | safety_boots | eye_protection
+  compliant: int                  # workers wearing it
+  non_compliant: int              # workers who should be but are not
+  notes: str
+
 Finding
+  subject: FindingSubject         # worker | site | equipment — who/what the hazard is about
   category: RiskCategory  # fall_protection | ppe | scaffolding | electrical | excavation |
                           # struck_by | housekeeping | machinery | fire | structural | other
   title: str
@@ -88,7 +101,9 @@ level(score)     = Low 0–24 | Moderate 25–49 | High 50–74 | Critical 75–
 
 No findings → `site_score = residual_score = 0`, level `Low`. Weighting rationale: one critical hazard dominates the score; many minor ones still raise it.
 
-`ScoreSummary` = `{risk_score, residual_score, reduction, risk_level, residual_level, findings_by_category: dict[RiskCategory, int], per_finding: [{index, risk, residual_risk}]}`.
+`ScoreSummary` = `{risk_score, residual_score, reduction, risk_level, residual_level, findings_by_category: dict[RiskCategory, int], findings_by_subject: dict[FindingSubject, int], ppe_compliance_rate: float | None, per_finding: [{index, risk, residual_risk}]}`.
+
+`ppe_compliance_rate = Σ compliant / Σ (compliant + non_compliant)` across `workers.ppe`; `None` when no workers are visible.
 
 ## 6. Data model
 
@@ -107,6 +122,7 @@ Table `analyses`:
 | `error_message` | str, nullable | |
 | `result_json` | JSON, nullable | full `AnalysisResult` |
 | `risk_score`, `residual_score` | int, nullable | denormalized for list/stats queries |
+| `ppe_compliance_rate` | float, nullable | denormalized for dashboard KPI |
 | `risk_level` | str, nullable | |
 | `model` | str, nullable | |
 | `input_tokens`, `output_tokens` | int, nullable | |
@@ -123,7 +139,7 @@ Base path `/api`. All errors return `{"detail": "<human readable>"}`.
 | `POST` | `/analyses/{id}/retry` | — | `202` re-runs analysis on stored file; `409` if not `failed` |
 | `DELETE` | `/analyses/{id}` | — | `204`; removes row and file |
 | `GET` | `/analyses/{id}/media` | — | streams original file with correct content-type |
-| `GET` | `/stats` | — | `{total, completed, average_score, critical_count, findings_by_category, trend: [{date, score}]}` |
+| `GET` | `/stats` | — | `{total, completed, average_score, critical_count, average_ppe_compliance, findings_by_category, findings_by_subject, trend: [{date, score}]}` |
 | `GET` | `/health` | — | `{status: "ok", gemini_configured: bool}` |
 
 Validation: max upload 100 MB (`413`), allowed MIME `image/jpeg, image/png, image/webp, video/mp4, video/quicktime, video/webm` (`400`). Frontend polls `GET /analyses/{id}` every 2 s while status is `pending`/`processing`.
@@ -134,12 +150,12 @@ Stack: React 18, Vite, TypeScript, Tailwind, React Router, Recharts, Lucide icon
 
 ### Routes
 
-- `/` **Dashboard** — KPI row (total analyses, average risk, critical count), score-trend line chart, findings-by-category bar chart, table of past analyses (date, site, file, level badge, score) → click opens report. Empty state with a "Run your first analysis" CTA.
+- `/` **Dashboard** — KPI row (total analyses, average risk, critical count, average PPE compliance), score-trend line chart, findings-by-category bar chart, table of past analyses (date, site, file, level badge, score) → click opens report. Empty state with a "Run your first analysis" CTA.
 - `/new` **Upload** — drag-and-drop zone with visible label and accepted formats, optional site-name input, selected-file preview (image thumbnail or video element), inline validation errors under the field, single primary CTA "Analyze". On success navigates to `/analyses/:id`.
 - `/analyses/:id` **Report** —
   - Processing state: skeleton layout + "Analyzing… video usually takes 20–60 s".
   - Failed state: error message + **Retry** button.
-  - Completed: header (media preview, site name, date, model, tokens); **Risk gauge** (radial, numeric score + level label + icon); **Current vs after mitigation** bullet bars with "reduce by N points" callout; **5×5 severity × likelihood matrix** with findings plotted; **findings by category** horizontal bar; **findings list** sorted by risk desc, each card: category icon, severity/likelihood chips, evidence (with timestamp for video), recommendation, required equipment tags, "−X% after fix"; **positive observations**; **Download PDF** button → `window.print()` with a print stylesheet (nav hidden, page breaks between sections, charts as SVG).
+  - Completed: header (media preview, site name, date, model, tokens); **Risk gauge** (radial, numeric score + level label + icon); **Current vs after mitigation** bullet bars with "reduce by N points" callout; **Workers & PPE** panel (workers visible, per-item compliance chips e.g. "Helmet 3/5" with check/alert icon, unsafe behaviours list); **5×5 severity × likelihood matrix** with findings plotted; **findings by category** horizontal bar; **findings list** sorted by risk desc, filterable by subject (All / Workers / Site / Equipment), each card: subject badge, category icon, severity/likelihood chips, evidence (with timestamp for video), recommendation, required equipment tags, "−X% after fix"; **positive observations**; **Download PDF** button → `window.print()` with a print stylesheet (nav hidden, page breaks between sections, charts as SVG).
 
 ### Design tokens
 
@@ -175,13 +191,13 @@ frontend/src/
 ## 10. Testing
 
 **Backend — pytest**
-- `tests/unit/test_scoring.py`: no findings; single critical; many minor; residual math; level boundaries (24/25, 49/50, 74/75).
+- `tests/unit/test_scoring.py`: no findings; single critical; many minor; residual math; level boundaries (24/25, 49/50, 74/75); `findings_by_subject`; `ppe_compliance_rate` incl. no-workers case.
 - `tests/unit/test_models.py`: valid fixture parses; out-of-range severity, unknown category, missing fields rejected.
 - `tests/api/test_analyses.py`: with `FakeAnalyzer` via dependency override and a temp SQLite: upload → poll → completed; upload → failure → retry → completed; invalid MIME `400`; oversize `413`; `404`s; delete removes file; list ordering; stats aggregation.
 - `tests/integration/test_gemini_live.py`: marked `integration`, skipped without `GEMINI_API_KEY`; analyzes one clip from `samples/` and asserts the result parses.
 
 **Frontend — Vitest + React Testing Library + MSW**
-- `risk.ts` level mapping; `useAnalysis` polling stops on `completed`; Dropzone rejects bad type with visible error; ReportPage renders fixture (score, level text, findings count); DashboardPage empty state.
+- `risk.ts` level mapping; `useAnalysis` polling stops on `completed`; Dropzone rejects bad type with visible error; ReportPage renders fixture (score, level text, findings count, PPE chips); subject filter narrows findings; DashboardPage empty state.
 
 **Smoke script** `scripts/smoke_analyze.py`: loops over every clip in `samples/`, calls the API, waits, prints `filename | score | level | findings | tokens` and a total token count.
 
