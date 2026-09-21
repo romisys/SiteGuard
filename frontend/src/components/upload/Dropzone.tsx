@@ -1,5 +1,5 @@
 import { FileVideo, Image as ImageIcon, Upload, X } from 'lucide-react'
-import { useEffect, useId, useMemo, useState, type DragEvent } from 'react'
+import { useEffect, useId, useState, type DragEvent } from 'react'
 
 export const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime', 'video/webm']
 export const DEFAULT_MAX_BYTES = 100 * 1024 * 1024
@@ -26,8 +26,13 @@ export function Dropzone({ file, onChange, maxBytes = DEFAULT_MAX_BYTES }: Dropz
   const [error, setError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
 
-  const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file])
-  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }, [previewUrl])
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  useEffect(() => {
+    if (!file) { setPreviewUrl(null); return }
+    const url = URL.createObjectURL(file)
+    setPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file])
 
   function handle(candidate: File | undefined) {
     if (!candidate) return
@@ -63,7 +68,7 @@ export function Dropzone({ file, onChange, maxBytes = DEFAULT_MAX_BYTES }: Dropz
             type="button"
             onClick={() => { setError(null); onChange(null) }}
             aria-label="Remove file"
-            className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-md text-fg-muted hover:bg-muted"
+            className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-md text-fg-muted transition-colors duration-150 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
           >
             <X className="size-5" aria-hidden />
           </button>
@@ -74,12 +79,21 @@ export function Dropzone({ file, onChange, maxBytes = DEFAULT_MAX_BYTES }: Dropz
 
   return (
     <div>
+      <input
+        id={inputId}
+        type="file"
+        accept={ACCEPTED_TYPES.join(',')}
+        className="peer sr-only"
+        aria-describedby={error ? errorId : undefined}
+        aria-invalid={error ? true : undefined}
+        onChange={(e) => handle(e.target.files?.[0])}
+      />
       <label
         htmlFor={inputId}
         onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
-        onDragLeave={() => setDragging(false)}
+        onDragLeave={(e) => { if (e.currentTarget.contains(e.relatedTarget as Node)) return; setDragging(false) }}
         onDrop={onDrop}
-        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors duration-150 ${
+        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors duration-150 peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-bg ${
           dragging ? 'border-accent bg-accent/5' : 'border-border bg-surface hover:border-fg-muted'
         }`}
       >
@@ -87,15 +101,6 @@ export function Dropzone({ file, onChange, maxBytes = DEFAULT_MAX_BYTES }: Dropz
         <span className="text-sm font-medium text-fg-strong">Upload a photo or video of the site</span>
         <span className="text-xs text-fg-muted">Drag and drop, or click to browse · JPG, PNG, WebP, MP4, MOV, WebM · up to {Math.round(maxBytes / 1024 / 1024)} MB</span>
       </label>
-      <input
-        id={inputId}
-        type="file"
-        accept={ACCEPTED_TYPES.join(',')}
-        className="sr-only"
-        aria-describedby={error ? errorId : undefined}
-        aria-invalid={error ? true : undefined}
-        onChange={(e) => handle(e.target.files?.[0])}
-      />
       {error && (
         <p id={errorId} role="alert" className="mt-2 text-sm text-danger">{error}</p>
       )}

@@ -17,9 +17,11 @@ export function UploadPage() {
   const [siteName, setSiteName] = useState('')
 
   const geminiMissing = health.data?.gemini_configured === false
+  const backendDown = health.isError
+  const blocked = geminiMissing || backendDown
 
   const create = useMutation({
-    mutationFn: () => api.createAnalysis(file!, siteName),
+    mutationFn: (f: File) => api.createAnalysis(f, siteName),
     onSuccess: (created) => {
       queryClient.invalidateQueries({ queryKey: analysesKey })
       navigate(`/analyses/${created.id}`)
@@ -33,6 +35,13 @@ export function UploadPage() {
         <p className="text-sm text-fg-muted">Upload one photo or a short video. Gemini checks workers, PPE and site hazards.</p>
       </header>
 
+      {backendDown && (
+        <div role="alert" className="flex items-start gap-2 rounded-md border border-risk-moderate/40 bg-risk-moderate/10 p-3 text-sm text-fg-strong">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-risk-moderate" aria-hidden />
+          <span>Cannot reach the SiteGuard API. Start the backend on port 8000 and reload.</span>
+        </div>
+      )}
+
       {geminiMissing && (
         <div role="alert" className="flex items-start gap-2 rounded-md border border-risk-moderate/40 bg-risk-moderate/10 p-3 text-sm text-fg-strong">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-risk-moderate" aria-hidden />
@@ -43,7 +52,7 @@ export function UploadPage() {
       <Card>
         <form
           className="space-y-5"
-          onSubmit={(e) => { e.preventDefault(); if (file) create.mutate() }}
+          onSubmit={(e) => { e.preventDefault(); if (file) create.mutate(file) }}
         >
           <div>
             <label htmlFor="site-name" className="block text-sm font-medium text-fg-strong">Site name <span className="font-normal text-fg-muted">(optional)</span></label>
@@ -67,7 +76,7 @@ export function UploadPage() {
           )}
 
           <div className="flex justify-end">
-            <Button type="submit" disabled={!file || geminiMissing} loading={create.isPending}>
+            <Button type="submit" disabled={!file || blocked} loading={create.isPending}>
               {create.isPending ? 'Uploading…' : 'Analyze'}
             </Button>
           </div>

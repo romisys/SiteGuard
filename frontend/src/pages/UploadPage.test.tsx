@@ -37,6 +37,14 @@ describe('UploadPage', () => {
     expect(screen.getByRole('button', { name: /analyze/i })).toBeDisabled()
   })
 
+  it('shows a warning and disables Analyze when the backend is unreachable', async () => {
+    server.use(http.get('*/api/health', () => HttpResponse.error()))
+    renderPage()
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/cannot reach/i))
+    await userEvent.upload(screen.getByLabelText(/upload a photo or video/i), new File(['x'], 'a.png', { type: 'image/png' }))
+    expect(screen.getByRole('button', { name: /analyze/i })).toBeDisabled()
+  })
+
   it('shows backend error under the form', async () => {
     server.use(http.post('*/api/analyses', () => HttpResponse.json({ detail: 'Unsupported file type' }, { status: 400 })))
     renderPage()
