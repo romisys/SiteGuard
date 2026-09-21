@@ -2,12 +2,12 @@
 
 No FastAPI, SQLAlchemy or google-genai imports here.
 """
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class RiskCategory(str, Enum):
+class RiskCategory(StrEnum):
     fall_protection = "fall_protection"
     ppe = "ppe"
     scaffolding = "scaffolding"
@@ -21,13 +21,13 @@ class RiskCategory(str, Enum):
     other = "other"
 
 
-class FindingSubject(str, Enum):
+class FindingSubject(StrEnum):
     worker = "worker"
     site = "site"
     equipment = "equipment"
 
 
-class PpeItem(str, Enum):
+class PpeItem(StrEnum):
     helmet = "helmet"
     hi_vis_vest = "hi_vis_vest"
     harness = "harness"
@@ -36,19 +36,19 @@ class PpeItem(str, Enum):
     eye_protection = "eye_protection"
 
 
-class RiskLevel(str, Enum):
+class RiskLevel(StrEnum):
     low = "Low"
     moderate = "Moderate"
     high = "High"
     critical = "Critical"
 
 
-class MediaType(str, Enum):
+class MediaType(StrEnum):
     image = "image"
     video = "video"
 
 
-class AnalysisStatus(str, Enum):
+class AnalysisStatus(StrEnum):
     pending = "pending"
     processing = "processing"
     completed = "completed"
@@ -75,8 +75,12 @@ class Finding(BaseModel):
     description: str = Field(description="What was observed")
     evidence: str = Field(description="Where in the frame / when it was seen")
     timestamp_seconds: float | None = Field(default=None, description="Video only")
-    severity: int = Field(ge=1, le=5, description="Consequence if it happens, 1 first aid .. 5 fatality")
-    likelihood: int = Field(ge=1, le=5, description="Probability given what is visible, 1 rare .. 5 almost certain")
+    severity: int = Field(
+        ge=1, le=5, description="Consequence if it happens, 1 first aid .. 5 fatality"
+    )
+    likelihood: int = Field(
+        ge=1, le=5, description="Probability given what is visible, 1 rare .. 5 almost certain"
+    )
     recommendation: str
     required_equipment: list[str] = Field(default_factory=list)
     mitigation_effectiveness: float = Field(

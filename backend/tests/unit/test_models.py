@@ -20,7 +20,9 @@ def test_timestamp_is_optional():
     assert f.timestamp_seconds is None
 
 
-@pytest.mark.parametrize("field,value", [("severity", 0), ("severity", 6), ("likelihood", 0), ("likelihood", 6)])
+@pytest.mark.parametrize(
+    "field,value", [("severity", 0), ("severity", 6), ("likelihood", 0), ("likelihood", 6)]
+)
 def test_out_of_range_severity_or_likelihood_rejected(field, value):
     with pytest.raises(ValidationError):
         make_finding(**{field: value})

@@ -8,7 +8,8 @@ from tests.factories import make_finding, make_result, make_workers
 @pytest.mark.parametrize(
     "value,expected",
     [(0, RiskLevel.low), (24, RiskLevel.low), (25, RiskLevel.moderate), (49, RiskLevel.moderate),
-     (50, RiskLevel.high), (74, RiskLevel.high), (75, RiskLevel.critical), (100, RiskLevel.critical)],
+     (50, RiskLevel.high), (74, RiskLevel.high), (75, RiskLevel.critical),
+     (100, RiskLevel.critical)],
 )
 def test_level_boundaries(value, expected):
     assert level_for(value) == expected
@@ -80,7 +81,8 @@ def test_ppe_compliance_rate():
 
 def test_ppe_compliance_rate_none_when_no_workers():
     assert ppe_compliance_rate(make_workers(workers_visible=0, ppe=[])) is None
-    assert ppe_compliance_rate(make_workers(ppe=[PpeCheck(item=PpeItem.gloves, compliant=0, non_compliant=0)])) is None
+    no_ppe = make_workers(ppe=[PpeCheck(item=PpeItem.gloves, compliant=0, non_compliant=0)])
+    assert ppe_compliance_rate(no_ppe) is None
 
 
 def test_score_includes_ppe_rate():
