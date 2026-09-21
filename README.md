@@ -37,7 +37,12 @@ python scripts/smoke_analyze.py   # uploads every clip in samples/
 
 ## Frontend
 
-See `frontend/README.md` (added with the frontend plan).
+```bash
+cd frontend && npm install && npm run dev     # http://localhost:5173 (backend must be on :8000)
+npm test
+```
+
+See `frontend/README.md` for routes, design tokens and the test setup.
 
 ## Security
 
