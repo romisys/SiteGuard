@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest'
+import { cleanup } from '@testing-library/react'
 import { Blob as NodeBlob, File as NodeFile } from 'node:buffer'
 import { afterAll, afterEach, beforeAll, vi } from 'vitest'
 import { server } from './server'
@@ -37,5 +38,9 @@ window.matchMedia =
   }))
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
-afterEach(() => server.resetHandlers())
+// No `globals: true`, so Testing Library cannot register its own afterEach cleanup.
+afterEach(() => {
+  cleanup()
+  server.resetHandlers()
+})
 afterAll(() => server.close())
