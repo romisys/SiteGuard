@@ -45,10 +45,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           </NavLink>
           <nav aria-label="Primary" className="flex items-center gap-1">
             <NavLink to="/" end className={linkClass}>
-              <LayoutDashboard className="size-4" aria-hidden /> <span>Dashboard</span>
+              <LayoutDashboard className="size-4" aria-hidden /> <span className="sr-only whitespace-nowrap sm:not-sr-only">Dashboard</span>
             </NavLink>
             <NavLink to="/new" className={linkClass}>
-              <Plus className="size-4" aria-hidden /> <span>New analysis</span>
+              <Plus className="size-4" aria-hidden /> <span className="sr-only whitespace-nowrap sm:not-sr-only">New analysis</span>
             </NavLink>
             <button
               type="button"
