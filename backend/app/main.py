@@ -3,7 +3,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import health
+from app.api.routes import analyses, health
 from app.config import Settings, get_settings
 from app.db.session import init_db, make_engine, make_session_factory
 from app.services.analysis_service import AnalysisService
@@ -40,4 +40,5 @@ def create_app(settings: Settings | None = None, analyzer: GeminiAnalyzer | None
         allow_headers=["*"],
     )
     app.include_router(health.router, prefix="/api")
+    app.include_router(analyses.router, prefix="/api")
     return app
