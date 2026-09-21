@@ -50,3 +50,12 @@ def make_result(findings: list[Finding] | None = None, **overrides) -> AnalysisR
     )
     data.update(overrides)
     return AnalysisResult(**data)
+
+
+from app.services.gemini_client import GeminiOutcome, GeminiUsage  # noqa: E402
+
+
+def make_outcome(result: AnalysisResult | None = None, **usage_overrides) -> GeminiOutcome:
+    usage = dict(model="fake-model", input_tokens=1200, output_tokens=340)
+    usage.update(usage_overrides)
+    return GeminiOutcome(result=result or make_result(), usage=GeminiUsage(**usage))
