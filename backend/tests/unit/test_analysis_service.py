@@ -146,3 +146,31 @@ def test_list_newest_first(service):
     b = service.create(filename="second.png", mime_type="image/png", data=b"2", site_name=None)
     ids = [r.id for r in service.list()]
     assert ids.index(b.id) < ids.index(a.id)
+
+
+def test_run_without_analyzer_marks_failed(tmp_path, session_factory):
+    service = AnalysisService(
+        session_factory=session_factory,
+        analyzer=None,
+        storage=FileStorage(root=tmp_path),
+        max_upload_bytes=1024,
+    )
+    a = service.create(filename="x.png", mime_type="image/png", data=b"abc", site_name=None)
+    service.run(a.id)
+    failed = service.get(a.id)
+    assert failed.status == "failed"
+    assert failed.error_message == "Gemini API key is not configured"
+
+
+def test_run_marks_failed_when_persist_step_raises(service, fake, monkeypatch):
+    fake.queue.append(make_outcome())
+
+    def boom(_result):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr("app.services.analysis_service.score", boom)
+    a = service.create(filename="x.png", mime_type="image/png", data=b"abc", site_name=None)
+    service.run(a.id)
+    failed = service.get(a.id)
+    assert failed.status == "failed"
+    assert failed.error_message == "boom"

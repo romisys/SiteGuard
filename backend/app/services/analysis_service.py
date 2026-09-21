@@ -70,24 +70,26 @@ class AnalysisService:
 
             try:
                 outcome = self._analyze_with_retry(analysis)
+                summary = score(outcome.result)
+                analysis.result_json = outcome.result.model_dump(mode="json")
+                analysis.risk_score = summary.risk_score
+                analysis.residual_score = summary.residual_score
+                analysis.risk_level = summary.risk_level.value
+                analysis.ppe_compliance_rate = summary.ppe_compliance_rate
+                analysis.model = outcome.usage.model
+                analysis.input_tokens = outcome.usage.input_tokens
+                analysis.output_tokens = outcome.usage.output_tokens
+                analysis.status = AnalysisStatus.completed.value
+                session.commit()
             except Exception as exc:  # noqa: BLE001 - background task must not crash
                 log.exception("analysis %s failed", analysis_id)
+                session.rollback()
                 analysis.status = AnalysisStatus.failed.value
-                analysis.error_message = str(exc)
-                session.commit()
-                return
-
-            summary = score(outcome.result)
-            analysis.result_json = outcome.result.model_dump(mode="json")
-            analysis.risk_score = summary.risk_score
-            analysis.residual_score = summary.residual_score
-            analysis.risk_level = summary.risk_level.value
-            analysis.ppe_compliance_rate = summary.ppe_compliance_rate
-            analysis.model = outcome.usage.model
-            analysis.input_tokens = outcome.usage.input_tokens
-            analysis.output_tokens = outcome.usage.output_tokens
-            analysis.status = AnalysisStatus.completed.value
-            session.commit()
+                analysis.error_message = str(exc) or exc.__class__.__name__
+                try:
+                    session.commit()
+                except Exception:  # noqa: BLE001
+                    log.exception("could not persist failure for %s", analysis_id)
 
     def retry(self, analysis_id: str) -> Analysis:
         with self._session_factory() as session:
