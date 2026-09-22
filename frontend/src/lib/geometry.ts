@@ -114,3 +114,74 @@ export function isVisibleAt(finding: Finding, time: number, window = 1.5): boole
   const end = finding.timestamp_end_seconds ?? start + window
   return time >= start - window / 2 && time <= end
 }
+
+/**
+ * How wide the marker track has to be to hold `count` whole hit targets.
+ *
+ * Never narrower than the space it was given, so a clip with a few hazards
+ * still uses the full width and only a crowded one scrolls.
+ */
+export function markerTrackWidth(count: number, trackWidth: number, markerWidth: number): number {
+  return Math.max(trackWidth, count * markerWidth)
+}
+
+/**
+ * The left edge of each hazard marker, in pixels along the track.
+ *
+ * Positioning a marker at `timestamp / duration` alone is what collapses them:
+ * Gemini stamps whole seconds, so several hazards routinely share one, and the
+ * markers land on the exact same pixel — the count says six and both the eye
+ * and the mouse find two. So markers are laid out rather than merely
+ * positioned. Each starts where its time says; any that would overlap are
+ * gathered into a run and the run is spread, a whole hit target apart, centred
+ * on where its members belong, so a crowd at 0:01 opens around 0:01 instead of
+ * shoving every later hazard down the track. Runs that grow into each other
+ * merge and re-centre. A final pair of passes keeps the ends on the track, and
+ * `markerTrackWidth` guarantees the room all of this needs.
+ *
+ * `times` must be ascending; the result is too, which is what keeps the tab
+ * order the order of the footage.
+ */
+export function spreadMarkers(
+  times: number[],
+  duration: number,
+  trackWidth: number,
+  markerWidth: number,
+): number[] {
+  const count = times.length
+  if (count === 0) return []
+  const last = markerTrackWidth(count, trackWidth, markerWidth) - markerWidth
+  const ideal = times.map((at) => {
+    const ratio = duration > 0 ? at / duration : 0
+    return Math.min(last, Math.max(0, ratio * last))
+  })
+
+  // A run of markers, kept as a count and the sum of where its members want to
+  // be, which is all that is needed to re-centre it when two runs merge.
+  const runs: { size: number; wanted: number }[] = []
+  const startOf = (run: { size: number; wanted: number }) =>
+    run.wanted / run.size - ((run.size - 1) * markerWidth) / 2
+  for (const wanted of ideal) {
+    runs.push({ size: 1, wanted })
+    while (runs.length > 1) {
+      const right = runs[runs.length - 1]
+      const left = runs[runs.length - 2]
+      if (startOf(left) + left.size * markerWidth <= startOf(right)) break
+      runs.splice(runs.length - 2, 2, { size: left.size + right.size, wanted: left.wanted + right.wanted })
+    }
+  }
+
+  const out: number[] = []
+  for (const run of runs) {
+    const start = startOf(run)
+    for (let i = 0; i < run.size; i += 1) out.push(start + i * markerWidth)
+  }
+  // Centring can hang a run off either end of the track; pull it back on.
+  out[0] = Math.max(0, out[0])
+  for (let i = 1; i < count; i += 1) out[i] = Math.max(out[i], out[i - 1] + markerWidth)
+  for (let i = count - 1; i >= 0; i -= 1) {
+    const ceiling = i === count - 1 ? last : out[i + 1] - markerWidth
+    out[i] = Math.max(0, Math.min(out[i], ceiling))
+  }
+  return out
+}

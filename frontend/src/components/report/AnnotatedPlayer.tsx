@@ -7,6 +7,8 @@ import {
   captionSpan,
   contentRect,
   isVisibleAt,
+  markerTrackWidth,
+  spreadMarkers,
   type Rect,
 } from '../../lib/geometry'
 import { LEVELS, riskBand, type LevelMeta } from '../../lib/risk'
@@ -59,9 +61,11 @@ const EMPTY_RECT: Rect = { x: 0, y: 0, width: 0, height: 0 }
 
 function TimelinePlayer({ src, label, located }: { src: string; label: string; located: Finding[] }) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const trackRef = useRef<HTMLDivElement>(null)
   const [time, setTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [rect, setRect] = useState<Rect>(EMPTY_RECT)
+  const [trackWidth, setTrackWidth] = useState(0)
   const [preview, setPreview] = useState<number | null>(null)
 
   const hazards = useMemo<Hazard[]>(
@@ -98,6 +102,20 @@ function TimelinePlayer({ src, label, located }: { src: string; label: string; l
     return () => observer.disconnect()
   }, [measure])
 
+  // The timeline is laid out in pixels, not percentages: a minimum gap between
+  // markers is a promise about hit targets, and a percentage cannot make it.
+  const hasTrack = duration > 0
+  useEffect(() => {
+    const track = trackRef.current
+    if (!track) return
+    const read = () => setTrackWidth(track.clientWidth)
+    read()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(read)
+    observer.observe(track)
+    return () => observer.disconnect()
+  }, [hasTrack])
+
   // `timeupdate` fires about four times a second. The boxes do not need more:
   // each one is a single rectangle held for the whole interval its hazard is
   // visible, so a requestAnimationFrame loop would re-render sixty times a
@@ -121,6 +139,12 @@ function TimelinePlayer({ src, label, located }: { src: string; label: string; l
   // The readout follows the pointer or the keyboard when one is on a marker,
   // and otherwise says what is on screen.
   const readout = preview !== null && hazards[preview] ? [hazards[preview]] : onScreen
+
+  // Where each marker actually sits, and how much track that needs. With no
+  // measurement yet — the first paint, or a test environment that lays nothing
+  // out — the minimum width keeps the markers apart rather than piling them up.
+  const markerLefts = spreadMarkers(hazards.map((h) => h.at), duration, trackWidth, MARKER_PX)
+  const laidOutWidth = markerTrackWidth(hazards.length, trackWidth, MARKER_PX)
 
   return (
     <div className="space-y-2">
@@ -176,39 +200,54 @@ function TimelinePlayer({ src, label, located }: { src: string; label: string; l
       {duration > 0 && (
         <div className="print:hidden">
           <div
+            ref={trackRef}
             role="group"
             aria-label={`Hazard timeline: ${hazards.length} ${hazards.length === 1 ? 'hazard' : 'hazards'}`}
-            className="relative h-11 rounded-md border border-border bg-muted"
+            className="relative h-14 overflow-x-auto overflow-y-hidden rounded-md border border-border bg-muted"
           >
-            {hazards.map((hazard, i) => {
-              const active = onScreen.includes(hazard)
-              return (
-                <button
-                  key={`${hazard.at}-${hazard.finding.title}`}
-                  type="button"
-                  aria-label={`Jump to ${hazard.finding.title} at ${formatTimestamp(hazard.at)}`}
-                  aria-current={active ? 'true' : undefined}
-                  onClick={() => {
-                    const video = videoRef.current
-                    if (!video) return
-                    video.currentTime = hazard.at
-                    setTime(hazard.at)
-                  }}
-                  onMouseEnter={() => setPreview(i)}
-                  onMouseLeave={() => setPreview((p) => (p === i ? null : p))}
-                  onFocus={() => setPreview(i)}
-                  onBlur={() => setPreview((p) => (p === i ? null : p))}
-                  className="absolute top-0 flex h-11 w-6 -translate-x-1/2 cursor-pointer items-center justify-center rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-bg"
-                  style={{ left: `${markerLeft(hazard.at, duration)}%` }}
-                >
-                  <span
-                    className={`rounded-full transition-all duration-150 ${hazard.level.fill} ${
-                      active ? 'h-8 w-1.5' : 'h-6 w-1'
-                    }`}
-                  />
-                </button>
-              )
-            })}
+            <div className="relative h-full" style={{ width: laidOutWidth, minWidth: '100%' }}>
+              {/* Where each hazard really falls in the clip. A marker nudged off
+                  its own second keeps this tick behind it, so the track still
+                  reads as time even where it had to make room. */}
+              <span aria-hidden className="pointer-events-none absolute inset-x-0 bottom-2 block h-px bg-border" />
+              {hazards.map((hazard) => (
+                <span
+                  key={`tick-${hazard.at}-${hazard.finding.title}`}
+                  aria-hidden
+                  className="pointer-events-none absolute bottom-1.5 block h-2 w-px bg-fg-muted"
+                  style={{ left: trueLeft(hazard.at, duration, laidOutWidth) }}
+                />
+              ))}
+              {hazards.map((hazard, i) => {
+                const active = onScreen.includes(hazard)
+                return (
+                  <button
+                    key={`${hazard.at}-${hazard.finding.title}`}
+                    type="button"
+                    aria-label={`Jump to ${hazard.finding.title} at ${formatTimestamp(hazard.at)}`}
+                    aria-current={active ? 'true' : undefined}
+                    onClick={() => {
+                      const video = videoRef.current
+                      if (!video) return
+                      video.currentTime = hazard.at
+                      setTime(hazard.at)
+                    }}
+                    onMouseEnter={() => setPreview(i)}
+                    onMouseLeave={() => setPreview((p) => (p === i ? null : p))}
+                    onFocus={() => setPreview(i)}
+                    onBlur={() => setPreview((p) => (p === i ? null : p))}
+                    className="absolute top-0 flex cursor-pointer items-start justify-center rounded pt-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-bg"
+                    style={{ left: markerLefts[i], width: MARKER_PX, height: MARKER_PX }}
+                  >
+                    <span
+                      className={`rounded-full transition-all duration-150 ${hazard.level.fill} ${
+                        active ? 'h-8 w-1.5' : 'h-6 w-1'
+                      }`}
+                    />
+                  </button>
+                )
+              })}
+            </div>
           </div>
           <p
             data-testid="timeline-readout"
@@ -236,9 +275,23 @@ function TimelinePlayer({ src, label, located }: { src: string; label: string; l
   )
 }
 
-/** Keep a marker's whole hit area on the track, even at 0:00 and at the end. */
-function markerLeft(at: number, duration: number): number {
-  return Math.min(98, Math.max(2, (at / duration) * 100))
+/**
+ * The hit target every marker gets, in pixels.
+ *
+ * It is both the size of the button and the minimum distance to the next one,
+ * so two markers can never be close enough for one to swallow the other's click.
+ */
+const MARKER_PX = 44
+
+/**
+ * Where a hazard's tick falls: the centre the marker would have had before any
+ * spreading. Measured over the same span `spreadMarkers` uses — the track less
+ * one marker — so an uncrowded marker sits exactly on its own tick.
+ */
+function trueLeft(at: number, duration: number, width: number): number {
+  if (duration <= 0) return MARKER_PX / 2
+  const span = Math.max(0, width - MARKER_PX)
+  return Math.min(span, Math.max(0, (at / duration) * span)) + MARKER_PX / 2
 }
 
 /** Roughly what one caption occupies, in CSS pixels. */

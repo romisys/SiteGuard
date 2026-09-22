@@ -122,6 +122,51 @@ describe('AnnotatedPlayer', () => {
     expect(new Set(tops).size).toBe(2)
   })
 
+  it('spreads hazards that share a timestamp into separate hit targets', () => {
+    // Gemini stamps whole seconds, so a real clip regularly hands five of six
+    // hazards the same one. Positioned by time alone they pile into one tick
+    // that only the topmost of them can be clicked on.
+    const together = ['One', 'Two', 'Three', 'Four', 'Five'].map((title) => ({
+      ...findingEdge, title, timestamp_seconds: 1, timestamp_end_seconds: 2,
+    }))
+    renderPlayer([...together, { ...findingEdge, title: 'Six', timestamp_seconds: 9 }])
+
+    const markers = screen.getAllByRole('button', { name: /jump to/i })
+    expect(markers).toHaveLength(6)
+    const lefts = markers.map((m) => Number.parseFloat(m.style.left))
+    expect(new Set(lefts).size).toBe(6)
+    // Ascending: the tab order is still the order of the footage.
+    expect([...lefts].sort((a, b) => a - b)).toEqual(lefts)
+    // And no two hit areas overlap, so a click lands on the marker it is over.
+    lefts.slice(1).forEach((left, i) => expect(left - lefts[i]).toBeGreaterThanOrEqual(44))
+  })
+
+  it('keeps eight coincident hazards separate in a phone-width track', () => {
+    // jsdom measures no track, so the player lays out at its minimum width —
+    // 8 x 44 = 352px, narrower than the ~343px track of a 375px viewport plus
+    // the horizontal scroll that width triggers. That is the tightest case.
+    const eight = Array.from({ length: 8 }, (_, i) => ({
+      ...findingEdge, title: `Hazard ${i + 1}`, timestamp_seconds: 1, timestamp_end_seconds: 2,
+    }))
+    renderPlayer(eight)
+    const markers = screen.getAllByRole('button', { name: /jump to/i })
+    expect(markers).toHaveLength(8)
+    markers.forEach((marker) => expect(marker).toHaveStyle({ width: '44px', height: '44px' }))
+    const lefts = markers.map((m) => Number.parseFloat(m.style.left))
+    expect(Math.min(...lefts)).toBeGreaterThanOrEqual(0)
+    expect(Math.max(...lefts)).toBeLessThanOrEqual(8 * 44 - 44)
+    lefts.slice(1).forEach((left, i) => expect(left - lefts[i]).toBeGreaterThanOrEqual(44))
+  })
+
+  it('still names every coincident hazard for a screen reader', () => {
+    const together = ['First hazard', 'Second hazard'].map((title) => ({
+      ...findingEdge, title, timestamp_seconds: 1, timestamp_end_seconds: 2,
+    }))
+    renderPlayer(together)
+    expect(screen.getAllByRole('button', { name: /jump to/i }).map((b) => b.getAttribute('aria-label')))
+      .toEqual(['Jump to First hazard at 0:01', 'Jump to Second hazard at 0:01'])
+  })
+
   it('falls back to a plain video when nothing was localised', () => {
     render(
       <AnnotatedPlayer
