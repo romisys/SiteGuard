@@ -45,6 +45,39 @@ export function captionPlacement(box: BoxPercent): CaptionPlacement {
   return { right: `${100 - rightEdge}%`, maxWidth: `${rightEdge}%` }
 }
 
+/** Roughly one character of a label, in CSS pixels, at the 11px it is drawn. */
+const CAPTION_CHAR_PX = 6.2
+/** A label's own horizontal padding and border. */
+const CAPTION_PADDING_PX = 16
+/** A short title still needs room; never treat a narrow box as a narrow label. */
+const MIN_CAPTION_WIDTH_PCT = 14
+
+/**
+ * The room a label will actually take across the frame, in percentages.
+ *
+ * Measuring the box instead is what lets two labels overprint: a hazard boxed
+ * around one worker's eyes is a few percent wide, and its title thirty. The
+ * width is an estimate from the title's length, because the label is not laid
+ * out yet when its neighbours are being placed.
+ */
+export function captionSpan(
+  box: BoxPercent,
+  title: string,
+  frameWidth: number,
+): { left: number; right: number } {
+  const place = captionPlacement(box)
+  const room = Number.parseFloat(place.maxWidth)
+  const estimate =
+    frameWidth > 0 ? ((title.length * CAPTION_CHAR_PX + CAPTION_PADDING_PX) / frameWidth) * 100 : room
+  const width = Math.min(room, Math.max(estimate, MIN_CAPTION_WIDTH_PCT))
+  if (place.left !== undefined) {
+    const left = Number.parseFloat(place.left)
+    return { left, right: left + width }
+  }
+  const right = 100 - Number.parseFloat(place.right as string)
+  return { left: right - width, right }
+}
+
 export interface Rect {
   x: number
   y: number

@@ -4,9 +4,9 @@ import { formatTimestamp } from '../../lib/format'
 import {
   boxToPercent,
   captionPlacement,
+  captionSpan,
   contentRect,
   isVisibleAt,
-  type BoxPercent,
   type Rect,
 } from '../../lib/geometry'
 import { LEVELS, riskBand, type LevelMeta } from '../../lib/risk'
@@ -111,7 +111,10 @@ function TimelinePlayer({ src, label, located }: { src: string; label: string; l
     .map((hazard) => ({ hazard, box: boxToPercent(hazard.finding.box_2d as number[]) }))
     .sort((a, b) => a.box.top - b.box.top || a.box.left - b.box.left)
   const captionTops = stackCaptions(
-    overlays.map((o) => o.box),
+    overlays.map(({ hazard, box }) => ({
+      top: box.top,
+      span: captionSpan(box, hazard.finding.title, rect.width),
+    })),
     rect.height,
   )
 
@@ -240,8 +243,12 @@ function markerLeft(at: number, duration: number): number {
 
 /** Roughly what one caption occupies, in CSS pixels. */
 const CAPTION_PX = 22
-/** A short title still needs room; never treat a narrow box as a narrow label. */
-const MIN_CAPTION_WIDTH_PCT = 14
+
+interface CaptionLabel {
+  /** The top of the box being labelled, as a percentage of the frame. */
+  top: number
+  span: { left: number; right: number }
+}
 
 /**
  * The top of each caption, as a percentage of the painted frame.
@@ -249,20 +256,20 @@ const MIN_CAPTION_WIDTH_PCT = 14
  * Hazards a second apart often sit in the same corner of the frame, and two
  * captions at the same height overprint into something unreadable. Captions are
  * placed top-down and any that would land on one already placed — within a
- * caption's height of it, and horizontally overlapping — drops a row.
+ * caption's height of it, and horizontally overlapping — drops a row. The
+ * overlap is measured across the label's own width, not its box's: a label is
+ * usually far wider than the hazard it names.
  */
-function stackCaptions(boxes: BoxPercent[], frameHeight: number): number[] {
+function stackCaptions(labels: CaptionLabel[], frameHeight: number): number[] {
   const step = frameHeight > 0 ? (CAPTION_PX / frameHeight) * 100 : 6
   const placed: { top: number; left: number; right: number }[] = []
-  return boxes.map((box) => {
-    const left = box.left
-    const right = Math.max(box.left + box.width, box.left + MIN_CAPTION_WIDTH_PCT)
+  return labels.map(({ top: boxTop, span }) => {
     // A box flush with the top edge has no room above it, so it wears its label inside.
-    let top = box.top > step ? box.top - step : box.top
+    let top = boxTop > step ? boxTop - step : boxTop
     const collides = () =>
-      placed.some((p) => Math.abs(p.top - top) < step * 0.99 && left < p.right && p.left < right)
+      placed.some((p) => Math.abs(p.top - top) < step * 0.99 && span.left < p.right && p.left < span.right)
     for (let guard = 0; guard <= placed.length && collides(); guard += 1) top += step
-    placed.push({ top, left, right })
+    placed.push({ top, left: span.left, right: span.right })
     return top
   })
 }

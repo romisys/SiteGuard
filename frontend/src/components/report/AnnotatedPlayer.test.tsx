@@ -96,6 +96,23 @@ describe('AnnotatedPlayer', () => {
     expect(caption.style.left).toBe('')
   })
 
+  it('keeps two wide labels on narrow boxes from printing over each other', () => {
+    // The boxes barely overlap, but the labels are far wider than the boxes
+    // they name, so measuring the boxes says "no collision" and the titles land
+    // on top of one another.
+    const left: Finding = {
+      ...findingEdge, title: 'Lack of Eye Protection for Workers', box_2d: [400, 100, 500, 160],
+    }
+    const right: Finding = {
+      ...findingEdge, title: 'Electrical Cables in Standing Water', box_2d: [400, 350, 500, 410],
+    }
+    const { video } = renderPlayer([left, right])
+    seek(video, 7)
+    const tops = screen.getAllByTestId('overlay-caption').map((c) => c.style.top)
+    expect(tops).toHaveLength(2)
+    expect(new Set(tops).size).toBe(2)
+  })
+
   it('keeps two captions in the same spot from printing over each other', () => {
     const twin: Finding = { ...findingEdge, title: 'Second hazard here' }
     const { video } = renderPlayer([findingEdge, twin])

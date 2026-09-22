@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { findingEdge } from '../test/fixtures'
-import { boxToPercent, captionPlacement, contentRect, isVisibleAt } from './geometry'
+import { boxToPercent, captionPlacement, captionSpan, contentRect, isVisibleAt } from './geometry'
 
 describe('boxToPercent', () => {
   it('converts a 0-1000 box to CSS percentages', () => {
@@ -81,5 +81,30 @@ describe('captionPlacement', () => {
       if (start !== null) expect(start + max).toBeLessThanOrEqual(100)
       if (end !== null) expect(end - max).toBeGreaterThanOrEqual(0)
     }
+  })
+})
+
+describe('captionSpan', () => {
+  const box = { top: 40, left: 10, width: 6, height: 10 }
+
+  it('is as wide as the label, not as wide as the box it names', () => {
+    const span = captionSpan(box, 'Lack of Eye Protection for Workers', 800)
+    expect(span.left).toBe(10)
+    expect(span.right - span.left).toBeGreaterThan(box.width * 3)
+  })
+
+  it('never claims more room than the label is allowed', () => {
+    const span = captionSpan(box, 'A title far longer than any frame could ever hold, on and on', 800)
+    expect(span.right).toBeLessThanOrEqual(100)
+  })
+
+  it('gives a short title a usable width', () => {
+    expect(captionSpan(box, 'Ice', 800).right - 10).toBeGreaterThanOrEqual(14)
+  })
+
+  it('runs back from the right edge for a label hung off one', () => {
+    const span = captionSpan({ top: 10, left: 70, width: 25, height: 20 }, 'Electrical Cables', 800)
+    expect(span.right).toBe(95)
+    expect(span.left).toBeLessThan(95)
   })
 })
