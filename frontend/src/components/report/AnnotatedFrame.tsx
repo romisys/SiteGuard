@@ -12,11 +12,28 @@ interface Props {
 }
 
 /**
+ * The tallest a still may be. A portrait clip yields a still two and a half
+ * times taller than it is wide, which used to stretch a finding's card to the
+ * height of the picture and leave most of the text column empty. Capping the
+ * height at the width of the card's still column keeps every still inside a
+ * square envelope, whatever the camera was held like.
+ */
+const STILL_MAX_HEIGHT = 'max-h-52'
+
+/**
  * One finding's still with its hazard boxed.
  *
  * The box is a positioned element over the `<img>`, never painted into the
  * pixels: it stays crisp at any size, its label stays selectable text, and the
  * print stylesheet keeps working on both.
+ *
+ * A still that hits the height cap is letterboxed in its slot, and that is why
+ * the box and its label sit in a wrapper around the `<img>` rather than in the
+ * figure. `boxToPercent` returns percentages of the *frame*, and a percentage
+ * resolves against the nearest positioned ancestor: against the figure they
+ * would be percentages of the slot, and every box on a portrait still would
+ * drift sideways and stretch. The wrapper shrinks to the picture — the picture
+ * is scaled, never cropped, so the box it points at is always still in shot.
  */
 export function AnnotatedFrame({ src, finding, failed = false }: Props) {
   const level = LEVELS[riskBand(finding.severity * finding.likelihood)]
@@ -29,11 +46,40 @@ export function AnnotatedFrame({ src, finding, failed = false }: Props) {
   // background, and a browser drops both from a PDF unless colours are kept exact.
   return (
     <figure
-      className="relative overflow-hidden rounded-md border border-border bg-muted print:break-inside-avoid print:[-webkit-print-color-adjust:exact] print:[print-color-adjust:exact]"
+      className="flex items-center justify-center overflow-hidden rounded-md border border-border bg-muted print:break-inside-avoid print:[-webkit-print-color-adjust:exact] print:[print-color-adjust:exact]"
       aria-label={`Annotated frame: ${finding.title}`}
     >
       {src ? (
-        <img src={src} alt={`Frame showing ${finding.title}`} className="block w-full" />
+        <div className="relative w-fit max-w-full overflow-hidden">
+          <img
+            src={src}
+            alt={`Frame showing ${finding.title}`}
+            className={`block w-auto max-w-full ${STILL_MAX_HEIGHT}`}
+          />
+          {box && (
+            <>
+              <span
+                data-testid="hazard-box"
+                className={`pointer-events-none absolute rounded-sm border-2 ${level.border}`}
+                style={{
+                  top: `${box.top}%`,
+                  left: `${box.left}%`,
+                  width: `${box.width}%`,
+                  height: `${box.height}%`,
+                }}
+              />
+              <figcaption
+                className={`pointer-events-none absolute truncate rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-semibold ${level.text}`}
+                style={{
+                  top: captionAbove ? `calc(${box.top}% - 1.25rem)` : `${box.top}%`,
+                  ...captionPlacement(box),
+                }}
+              >
+                {finding.title}
+              </figcaption>
+            </>
+          )}
+        </div>
       ) : (
         <div
           role="status"
@@ -49,29 +95,6 @@ export function AnnotatedFrame({ src, finding, failed = false }: Props) {
             </>
           )}
         </div>
-      )}
-      {box && (
-        <>
-          <span
-            data-testid="hazard-box"
-            className={`pointer-events-none absolute rounded-sm border-2 ${level.border}`}
-            style={{
-              top: `${box.top}%`,
-              left: `${box.left}%`,
-              width: `${box.width}%`,
-              height: `${box.height}%`,
-            }}
-          />
-          <figcaption
-            className={`pointer-events-none absolute truncate rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-semibold ${level.text}`}
-            style={{
-              top: captionAbove ? `calc(${box.top}% - 1.25rem)` : `${box.top}%`,
-              ...captionPlacement(box),
-            }}
-          >
-            {finding.title}
-          </figcaption>
-        </>
       )}
     </figure>
   )

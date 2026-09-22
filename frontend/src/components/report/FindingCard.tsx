@@ -33,6 +33,9 @@ export function FindingCard({ finding, risk, residualRisk, still }: Props) {
         </span>
       </div>
 
+      {/* The still column is 13rem, and AnnotatedFrame caps a still at that same
+          13rem tall, so a portrait clip can no longer stretch the card to the
+          height of its picture and leave the text column half empty. */}
       <div className={`mt-2 gap-4 ${still ? 'sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,13rem)] sm:items-start' : ''}`}>
         <div className="min-w-0">
           <h3 className="text-base font-semibold text-fg-strong">{finding.title}</h3>

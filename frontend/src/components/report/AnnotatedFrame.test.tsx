@@ -48,4 +48,32 @@ describe('AnnotatedFrame', () => {
     render(<AnnotatedFrame src="data:image/jpeg;base64,x" finding={{ ...findingEdge, box_2d: [0, 100, 400, 700] }} />)
     expect(screen.getByText('Unprotected slab edge')).toHaveStyle({ top: '0%' })
   })
+
+  it('anchors the box to the picture, not to the letterboxed slot', () => {
+    // A portrait still is capped in height and centred in a wider slot, so the
+    // figure is no longer the picture. Percentages are relative to the nearest
+    // positioned ancestor, so the box and its label have to live in a wrapper
+    // that is exactly the rendered <img> box — otherwise every box drifts.
+    render(<AnnotatedFrame src="data:image/jpeg;base64,x" finding={findingEdge} />)
+    const img = screen.getByRole('img')
+    const frame = img.parentElement as HTMLElement
+    expect(frame).toHaveClass('relative')
+    expect(screen.getByTestId('hazard-box').parentElement).toBe(frame)
+    expect(screen.getByText('Unprotected slab edge').parentElement).toBe(frame)
+    // The wrapper shrinks to the picture instead of the picture stretching to it.
+    expect(frame.className).toMatch(/\bw-fit\b/)
+  })
+
+  it('scales the still down rather than cropping it', () => {
+    // Cropping would be the easy way to cap a portrait still's height, and it
+    // would cut away the annotated box, which is the entire point of the still.
+    render(<AnnotatedFrame src="data:image/jpeg;base64,x" finding={findingEdge} />)
+    const img = screen.getByRole('img')
+    expect(img.className).toMatch(/\bmax-h-52\b/)
+    expect(img.className).toMatch(/\bw-auto\b/)
+    expect(img.className).toMatch(/\bmax-w-full\b/)
+    expect(img.className.split(' ')).not.toContain('w-full')
+    expect(img.className.split(' ')).not.toContain('h-full')
+    expect(img.className).not.toMatch(/object-(cover|fill)/)
+  })
 })
