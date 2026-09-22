@@ -44,6 +44,43 @@ npm test
 
 See `frontend/README.md` for routes, design tokens and the test setup.
 
+## Visual annotations
+
+Gemini returns a bounding box (`box_2d`, normalised 0–1000) for each hazard it
+localises. The report uses it twice:
+
+- **Beside every finding**, a still captured from the clip at that hazard's
+  timestamp, with a risk-coloured box drawn around it.
+- **Over the player**, the same boxes appear while their hazard is on screen,
+  with a timeline below marking each one — click a marker to jump there.
+
+Frames are captured in the browser (one off-screen `<video>` seeks through the
+timestamps and paints to a `<canvas>`), so there is no ffmpeg and no
+server-side image work — which is what lets this run on serverless functions.
+
+Box accuracy is good but not exact: a clear subject gets a tight box, a worker
+behind scaffolding can get a loose one. Findings Gemini cannot localise simply
+show no still, and the report is otherwise unchanged.
+
+## Deployment
+
+The app runs on Vercel as one project with two services (`vercel.json`): the
+Vite frontend and the FastAPI backend on `/api`, sharing a domain. Serverless
+means the filesystem is ephemeral, so deployments need:
+
+| Variable | Source |
+|---|---|
+| `DATABASE_URL` | Neon Postgres (Vercel Storage → Create Database) |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob store, connected to the project |
+| `GEMINI_API_KEY` | Google AI Studio |
+| `SITEGUARD_SYNC_ANALYSIS=1` | runs the analysis inside the request, since work scheduled after a response is not guaranteed to finish |
+
+Without `DATABASE_URL` and `BLOB_READ_WRITE_TOKEN` the app falls back to SQLite
+and local disk, which is what you want locally and fatal on Vercel.
+
+Uploads are capped at 4.5 MB by the platform on every plan. Lifting that means
+uploading from the browser straight to Blob and passing the URL to the API.
+
 ## Security
 
 Never commit `.env`. If the Gemini key was ever shared in chat or a screenshot, rotate it in Google AI Studio.
