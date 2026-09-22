@@ -4,6 +4,7 @@ import type { AnalysisDetail } from '../../api/types'
 import { formatDate, formatTokens } from '../../lib/format'
 import { LevelBadge } from '../ui/Badge'
 import { Button } from '../ui/Button'
+import { AnnotatedPlayer } from './AnnotatedPlayer'
 
 interface Props {
   analysis: AnalysisDetail
@@ -13,15 +14,25 @@ interface Props {
 
 export function ReportHeader({ analysis, onDelete, deleting }: Props) {
   const mediaUrl = api.mediaUrl(analysis.id)
+  const isVideo = analysis.media_type === 'video'
   return (
-    <header className="grid gap-4 rounded-lg border border-border bg-surface p-4 shadow-card md:grid-cols-[240px_1fr]">
-      <div className="overflow-hidden rounded-md bg-muted" style={{ aspectRatio: '16 / 10' }}>
-        {analysis.media_type === 'video' ? (
-          <video src={mediaUrl} controls muted playsInline className="size-full object-contain" aria-label={`Video ${analysis.filename}`} />
-        ) : (
+    // The player needs room for its hazard timeline, so video gets a wider column than a photo.
+    <header
+      className={`grid gap-4 rounded-lg border border-border bg-surface p-4 shadow-card ${
+        isVideo ? 'md:grid-cols-[minmax(0,28rem)_1fr]' : 'md:grid-cols-[240px_1fr]'
+      }`}
+    >
+      {isVideo ? (
+        <AnnotatedPlayer
+          src={mediaUrl}
+          findings={analysis.result?.findings ?? []}
+          label={`Site footage ${analysis.filename}`}
+        />
+      ) : (
+        <div className="overflow-hidden rounded-md bg-muted" style={{ aspectRatio: '16 / 10' }}>
           <img src={mediaUrl} alt={`Site photo ${analysis.filename}`} className="size-full object-contain" />
-        )}
-      </div>
+        </div>
+      )}
       <div className="flex min-w-0 flex-col gap-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
