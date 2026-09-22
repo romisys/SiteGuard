@@ -7,12 +7,21 @@
     },
     "backend": {
       "root": "backend",
-      "entrypoint": "app.main:app",
-      "excludeFiles": "{tests/**,data/**,.venv/**,**/__pycache__/**}"
+      "entrypoint": "app.main:app"
     }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": { "service": "backend" } },
-    { "source": "/(.*)", "destination": { "service": "frontend" } }
+    {
+      "source": "/api/(.*)",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "frontend"
+      }
+    }
   ]
 }
