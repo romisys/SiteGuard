@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from sqlalchemy import create_engine
 
@@ -84,9 +86,10 @@ def test_created_at_is_utc_aware_after_reload(session):
 
 def test_mark_interrupted_fails_pending_and_processing_only(session):
     repo = AnalysisRepository(session)
-    pending = repo.add(_row(status="pending"))
-    processing = repo.add(_row(status="processing"))
-    completed = repo.add(_row(status="completed", risk_score=10))
+    stale = datetime.now(UTC) - timedelta(hours=2)
+    pending = repo.add(_row(status="pending", created_at=stale))
+    processing = repo.add(_row(status="processing", created_at=stale))
+    completed = repo.add(_row(status="completed", risk_score=10, created_at=stale))
     session.commit()
 
     count = repo.mark_interrupted("Server restarted during analysis — click Retry")
@@ -108,3 +111,15 @@ def test_mark_interrupted_with_nothing_stuck_returns_zero(session):
     repo.add(_row(status="completed"))
     session.commit()
     assert repo.mark_interrupted("restarted") == 0
+
+
+def test_mark_interrupted_spares_recent_rows(session):
+    """A serverless cold start must not fail an analysis that is still running."""
+    repo = AnalysisRepository(session)
+    fresh = repo.add(_row(status="processing"))
+    session.commit()
+
+    assert repo.mark_interrupted("restarted") == 0
+    session.commit()
+    session.expire_all()
+    assert repo.get(fresh.id).status == "processing"

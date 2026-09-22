@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 from app.services.errors import AnalyzerError
 from tests.factories import make_finding, make_outcome, make_result
 
@@ -130,7 +132,7 @@ def test_startup_fails_analyses_interrupted_by_restart(client, settings, fake_an
     from app.db.repository import AnalysisRepository
     from app.main import create_app
 
-    # Simulate a server that died mid-analysis: a row stuck in `processing`.
+    # Simulate a server that died mid-analysis: an old row stuck in `processing`.
     with client.app.state.service._session_factory() as session:
         stuck = AnalysisRepository(session).add(
             Analysis(
@@ -139,6 +141,7 @@ def test_startup_fails_analyses_interrupted_by_restart(client, settings, fake_an
                 mime_type="video/quicktime",
                 storage_path="uploads/stuck.mov",
                 status="processing",
+                created_at=datetime.now(UTC) - timedelta(hours=2),
             )
         )
         session.commit()
@@ -153,3 +156,72 @@ def test_startup_fails_analyses_interrupted_by_restart(client, settings, fake_an
         assert detail["status"] == "failed"
         assert detail["error_message"] == "Server restarted during analysis — click Retry"
         assert c.post(f"/api/analyses/{stuck_id}/retry").status_code == 202
+
+
+def test_sync_mode_completes_within_the_request(settings, fake_analyzer):
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    settings.sync_analysis = True
+    app = create_app(settings=settings, analyzer=fake_analyzer)
+    with TestClient(app) as client:
+        created = client.post("/api/analyses", files={"file": PNG}).json()
+        assert created["status"] == "completed"
+        assert client.get(f"/api/analyses/{created['id']}").json()["status"] == "completed"
+
+
+def test_sync_mode_reports_failure_in_the_response(settings, fake_analyzer):
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    settings.sync_analysis = True
+    fake_analyzer.queue.extend([AnalyzerError("quota"), AnalyzerError("quota")])
+    app = create_app(settings=settings, analyzer=fake_analyzer)
+    app.state.service._retry_delay = 0
+    with TestClient(app) as client:
+        created = client.post("/api/analyses", files={"file": PNG}).json()
+        assert created["status"] == "failed"
+
+
+def test_sync_mode_retry_completes_within_the_request(settings, fake_analyzer):
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    settings.sync_analysis = True
+    fake_analyzer.queue.extend([AnalyzerError("quota"), AnalyzerError("quota")])
+    app = create_app(settings=settings, analyzer=fake_analyzer)
+    app.state.service._retry_delay = 0
+    with TestClient(app) as client:
+        created = client.post("/api/analyses", files={"file": PNG}).json()
+        assert created["status"] == "failed"
+        retried = client.post(f"/api/analyses/{created['id']}/retry").json()
+        assert retried["status"] == "completed"
+
+
+def test_startup_sweep_leaves_a_fresh_processing_row_alone(client, settings, fake_analyzer):
+    from fastapi.testclient import TestClient
+
+    from app.db.models import Analysis
+    from app.db.repository import AnalysisRepository
+    from app.main import create_app
+
+    # A cold start must not fail an analysis that another invocation is running right now.
+    with client.app.state.service._session_factory() as session:
+        fresh = AnalysisRepository(session).add(
+            Analysis(
+                filename="clip.mov",
+                media_type="video",
+                mime_type="video/quicktime",
+                storage_path="uploads/fresh.mov",
+                status="processing",
+            )
+        )
+        session.commit()
+        fresh_id = fresh.id
+
+    restarted = create_app(settings=settings, analyzer=fake_analyzer)
+    with TestClient(restarted) as c:
+        assert c.get(f"/api/analyses/{fresh_id}").json()["status"] == "processing"

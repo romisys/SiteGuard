@@ -40,7 +40,12 @@ async def create_analysis(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except FileTooLarge as exc:
         raise HTTPException(status_code=413, detail=str(exc)) from exc
-    background.add_task(service.run, analysis.id)
+    if service.runs_inline:
+        # service.run never raises; it writes the outcome to the row.
+        await run_in_threadpool(service.run, analysis.id)
+        analysis = service.get(analysis.id) or analysis
+    else:
+        background.add_task(service.run, analysis.id)
     return CreatedResponse(id=analysis.id, status=analysis.status)
 
 
@@ -71,7 +76,12 @@ def retry_analysis(
         raise HTTPException(status_code=404, detail="Analysis not found") from exc
     except InvalidState as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    background.add_task(service.run, analysis.id)
+    if service.runs_inline:
+        # This endpoint is a sync def, so Starlette already runs it off the event loop.
+        service.run(analysis.id)
+        analysis = service.get(analysis.id) or analysis
+    else:
+        background.add_task(service.run, analysis.id)
     return CreatedResponse(id=analysis.id, status=analysis.status)
 
 

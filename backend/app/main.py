@@ -39,6 +39,7 @@ def create_app(settings: Settings | None = None, analyzer: GeminiAnalyzer | None
             else FileStorage(root=settings.data_dir)
         ),
         max_upload_bytes=settings.max_upload_bytes,
+        sync=settings.sync_analysis,
     )
     interrupted = service.fail_interrupted()
     if interrupted:

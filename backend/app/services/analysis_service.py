@@ -30,12 +30,19 @@ class AnalysisService:
         storage: FileStorage,
         max_upload_bytes: int,
         retry_delay: float = RETRY_DELAY_SECONDS,
+        sync: bool = False,
     ):
         self._session_factory = session_factory
         self._analyzer = analyzer
         self._storage = storage
         self._max_upload_bytes = max_upload_bytes
         self._retry_delay = retry_delay
+        self._sync = sync
+
+    @property
+    def runs_inline(self) -> bool:
+        """Serverless: work scheduled after the response may never run, so analyse inline."""
+        return self._sync
 
     # ------------------------------------------------------------------ writes
 
