@@ -8,7 +8,17 @@ export interface FrameCaptureOptions {
   /** Seams for tests: jsdom decodes no video and paints no canvas. */
   createVideo?: () => HTMLVideoElement
   capture?: (video: HTMLVideoElement) => string | null
+  /** How long to wait for a painted frame before capturing anyway (ms). */
+  paintTimeout?: number
 }
+
+/**
+ * How long a seek gets to be presented before the still is taken regardless.
+ *
+ * Long enough that a decoded frame normally wins the race, short enough that a
+ * report with eight findings is not noticeably slower to fill in.
+ */
+const PAINT_TIMEOUT_MS = 150
 
 export interface FrameCaptures {
   /** Captured stills as data URLs, keyed by the index of the timestamp. */
@@ -59,6 +69,7 @@ export function useFrameCaptures({
   enabled,
   createVideo = defaultCreateVideo,
   capture = defaultCapture,
+  paintTimeout = PAINT_TIMEOUT_MS,
 }: FrameCaptureOptions): FrameCaptures {
   // The timestamps themselves are the identity of a run; a fresh array of the
   // same seconds is the same work. The effect reads them back out of `key`, so
@@ -68,9 +79,9 @@ export function useFrameCaptures({
 
   // Callers pass these inline, so they change identity on every render. Held in
   // refs, they cannot restart a capture run that is already the right one.
-  const seams = useRef({ createVideo, capture })
+  const seams = useRef({ createVideo, capture, paintTimeout })
   useEffect(() => {
-    seams.current = { createVideo, capture }
+    seams.current = { createVideo, capture, paintTimeout }
   })
 
   useEffect(() => {
@@ -81,6 +92,16 @@ export function useFrameCaptures({
     let cancelled = false
     let index = 0
     let paintHandle: number | null = null
+    let paintTimer: ReturnType<typeof setTimeout> | null = null
+
+    const clearPaint = () => {
+      if (paintHandle !== null && typeof video.cancelVideoFrameCallback === 'function') {
+        video.cancelVideoFrameCallback(paintHandle)
+      }
+      paintHandle = null
+      if (paintTimer !== null) clearTimeout(paintTimer)
+      paintTimer = null
+    }
 
     const seekNext = () => {
       if (cancelled || index >= times.length) return
@@ -105,16 +126,27 @@ export function useFrameCaptures({
     // `seeked` means the seek landed, not that the new frame has been painted —
     // capturing there can hand back the previous frame. requestVideoFrameCallback
     // fires when a frame is actually presented, so prefer it where it exists.
+    //
+    // But a *paused* video presents no frames at all, so on every browser that
+    // implements the callback it simply never runs, and every still stays on
+    // "Capturing frame…" for good. Race it against a short timer and take
+    // whichever comes first.
     const onSeeked = () => {
       if (cancelled) return
-      if (typeof video.requestVideoFrameCallback === 'function') {
-        paintHandle = video.requestVideoFrameCallback(() => {
-          paintHandle = null
-          grab()
-        })
-      } else {
+      if (typeof video.requestVideoFrameCallback !== 'function') {
+        grab()
+        return
+      }
+      const paint = () => {
+        if (cancelled) return
+        clearPaint()
         grab()
       }
+      paintHandle = video.requestVideoFrameCallback(() => {
+        paintHandle = null
+        paint()
+      })
+      paintTimer = setTimeout(paint, seams.current.paintTimeout)
     }
 
     const onError = () => {
@@ -135,9 +167,7 @@ export function useFrameCaptures({
 
     return () => {
       cancelled = true
-      if (paintHandle !== null && typeof video.cancelVideoFrameCallback === 'function') {
-        video.cancelVideoFrameCallback(paintHandle)
-      }
+      clearPaint()
       video.removeEventListener('loadedmetadata', seekNext)
       video.removeEventListener('seeked', onSeeked)
       video.removeEventListener('error', onError)

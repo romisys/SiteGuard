@@ -77,6 +77,7 @@ describe('useFrameCaptures', () => {
         enabled: true,
         createVideo: video.asVideo,
         capture: () => 'blob:frame',
+        paintTimeout: 10_000, // long enough that only the callback can win
       }),
     )
 
@@ -85,6 +86,33 @@ describe('useFrameCaptures', () => {
     expect(result.current.frames).toEqual({}) // `seeked` alone is not a painted frame
     act(() => painted[0]())
     await waitFor(() => expect(result.current.frames[0]).toBe('blob:frame'))
+  })
+
+  // A paused video presents no frames to the compositor, so Chrome never runs
+  // the callback: waiting for it alone leaves every still stuck on "Capturing
+  // frame…" forever, which is exactly what the deployed report did.
+  it('still captures when requestVideoFrameCallback never fires', async () => {
+    const video = fakeVideo()
+    const painted: Array<() => void> = []
+    video.el.requestVideoFrameCallback = (cb) => painted.push(cb)
+    const seeks: number[] = []
+    video.answerSeeks(seeks)
+
+    const { result } = renderHook(() =>
+      useFrameCaptures({
+        src: '/m',
+        timestamps: [4, 7],
+        enabled: true,
+        createVideo: video.asVideo,
+        capture: () => 'blob:frame',
+        paintTimeout: 5,
+      }),
+    )
+
+    video.fire('loadedmetadata')
+    await waitFor(() => expect(Object.keys(result.current.frames)).toHaveLength(2))
+    expect(seeks).toEqual([4, 7])
+    expect(painted.length).toBeGreaterThan(0) // the callback was asked for, just never honoured
   })
 
   it('reports failure without throwing when the media cannot load', async () => {
