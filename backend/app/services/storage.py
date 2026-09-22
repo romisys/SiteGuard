@@ -56,16 +56,23 @@ class BlobStorage:
     client to read, `delete` removes it.
     """
 
-    def __init__(self, token: str, http=None, cache_dir: Path | None = None):
+    def __init__(
+        self,
+        token: str,
+        http=None,
+        cache_dir: Path | None = None,
+        access: str = "private",
+    ):
         import httpx
 
         self._token = token
+        self._access = access
         self._http = http or httpx.Client(timeout=120)
         self._cache_dir = cache_dir or Path(tempfile.gettempdir()) / "siteguard-blobs"
         self._cache_dir.mkdir(parents=True, exist_ok=True)
 
     def _headers(self) -> dict[str, str]:
-        return {"authorization": f"Bearer {self._token}", "x-api-version": "7"}
+        return {"authorization": f"Bearer {self._token}"}
 
     def save(self, analysis_id: str, mime_type: str, data: bytes) -> str:
         media_type_for(mime_type)  # raises UnsupportedMediaType
@@ -76,7 +83,10 @@ class BlobStorage:
                 content=data,
                 headers={
                     **self._headers(),
-                    "content-type": mime_type,
+                    # Header names the Blob API expects; `content-type` describes the
+                    # request body, `x-content-type` the stored object.
+                    "x-vercel-blob-access": self._access,
+                    "x-content-type": mime_type,
                     "x-add-random-suffix": "0",
                 },
             )

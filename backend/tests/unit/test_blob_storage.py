@@ -128,3 +128,18 @@ def test_create_app_selects_blob_storage_when_token_is_set(
     assert isinstance(app.state.service._storage, storage_module.BlobStorage)
     # /tmp-only filesystem on Vercel: create_app must not touch data_dir.
     assert not settings.data_dir.exists()
+
+
+def test_save_declares_the_store_access_mode():
+    """A private store rejects an upload that does not say it is private."""
+    http = FakeHttp()
+    BlobStorage(token="tok", http=http).save("abc", "video/quicktime", b"bytes")
+    headers = http.calls[0][2]
+    assert headers["x-vercel-blob-access"] == "private"
+    assert headers["x-content-type"] == "video/quicktime"
+
+
+def test_save_can_target_a_public_store():
+    http = FakeHttp()
+    BlobStorage(token="tok", http=http, access="public").save("abc", "image/png", b"x")
+    assert http.calls[0][2]["x-vercel-blob-access"] == "public"
