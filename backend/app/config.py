@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,6 +26,13 @@ class Settings(BaseSettings):
     database_url_env: str | None = Field(default=None, validation_alias="DATABASE_URL")
     blob_token: str | None = Field(default=None, validation_alias="BLOB_READ_WRITE_TOKEN")
     sync_analysis: bool = Field(default=False, validation_alias="SITEGUARD_SYNC_ANALYSIS")
+
+    @field_validator("gemini_api_key", "database_url_env", "blob_token", mode="after")
+    @classmethod
+    def _strip_secret(cls, value: str | None) -> str | None:
+        """Secrets pasted into a dashboard often carry a trailing newline, which
+        makes them illegal as HTTP header values."""
+        return value.strip() if value else value
 
     @property
     def gemini_configured(self) -> bool:

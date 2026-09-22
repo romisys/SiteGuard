@@ -57,3 +57,15 @@ def test_serverless_flags_read_env(monkeypatch, tmp_path: Path):
     s = Settings(_env_file=None, data_dir=tmp_path)
     assert s.blob_token == "vercel_blob_rw_x"
     assert s.sync_analysis is True
+
+
+def test_secrets_are_stripped_of_stray_whitespace(monkeypatch, tmp_path):
+    """A token pasted into a dashboard often carries a trailing newline, which is
+    an illegal HTTP header value."""
+    monkeypatch.setenv("BLOB_READ_WRITE_TOKEN", "vercel_blob_rw_abc\n")
+    monkeypatch.setenv("GEMINI_API_KEY", "  key-with-spaces  ")
+    monkeypatch.setenv("DATABASE_URL", "postgres://u:p@host/db\n")
+    s = Settings(_env_file=None, data_dir=tmp_path)
+    assert s.blob_token == "vercel_blob_rw_abc"
+    assert s.gemini_api_key == "key-with-spaces"
+    assert s.database_url == "postgresql+psycopg://u:p@host/db"
