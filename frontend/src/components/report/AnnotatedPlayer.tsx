@@ -147,7 +147,13 @@ function TimelinePlayer({ src, label, located }: { src: string; label: string; l
   const laidOutWidth = markerTrackWidth(hazards.length, trackWidth, MARKER_PX)
 
   return (
-    <div className="space-y-2">
+    // `min-w-0`: the track below is laid out in pixels and is wider than the
+    // room it was given whenever hazards crowd, which is what makes it scroll.
+    // A grid or flex item's automatic minimum size is its content's, so without
+    // this the track's width would push this column — and the page — wider on a
+    // narrow viewport. And since the track is also what is measured, the
+    // widening would stick: the report would scroll sideways until reloaded.
+    <div className="min-w-0 space-y-2">
       <div className="relative overflow-hidden rounded-md bg-muted">
         <video
           ref={videoRef}

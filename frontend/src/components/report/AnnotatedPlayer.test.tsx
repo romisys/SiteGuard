@@ -158,6 +158,20 @@ describe('AnnotatedPlayer', () => {
     lefts.slice(1).forEach((left, i) => expect(left - lefts[i]).toBeGreaterThanOrEqual(44))
   })
 
+  it('lets the column it sits in stay narrower than its laid-out track', () => {
+    // The track lays its markers out in pixels and is deliberately wider than
+    // the room it was given when hazards crowd — that is what makes it scroll.
+    // But the player is a grid item, and a grid item's automatic minimum size
+    // is its content's, so that laid-out width pushes the whole column (and the
+    // page) wider on a narrow viewport. Worse, the widened element is the one
+    // the player measures, so the track never shrinks back: narrowing the
+    // window once leaves the report scrolling sideways for good. `min-w-0` is
+    // what lets the column shrink past the track. Verified in Chrome: without
+    // it a 343px column holding a 446px track measures 448px.
+    const { container } = renderPlayer()
+    expect(container.firstElementChild?.className).toContain('min-w-0')
+  })
+
   it('still names every coincident hazard for a screen reader', () => {
     const together = ['First hazard', 'Second hazard'].map((title) => ({
       ...findingEdge, title, timestamp_seconds: 1, timestamp_end_seconds: 2,
