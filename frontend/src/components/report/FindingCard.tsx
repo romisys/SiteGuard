@@ -33,11 +33,19 @@ export function FindingCard({ finding, risk, residualRisk, still }: Props) {
         </span>
       </div>
 
-      {/* The still column is 13rem, and AnnotatedFrame caps a still at that same
-          13rem tall, so a portrait clip can no longer stretch the card to the
-          height of its picture and leave the text column half empty. */}
-      <div className={`mt-2 gap-4 ${still ? 'sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,13rem)] sm:items-start' : ''}`}>
-        <div className="min-w-0">
+      {/* The still column is 13rem and AnnotatedFrame caps a still at that same
+          13rem tall. The still spans both rows so it sits beside the description
+          *and* the recommendation: in one row it would stretch that row to the
+          picture's height and leave the text column half empty. DOM order keeps
+          the still above the recommendation once the grid collapses on mobile. */}
+      <div
+        className={`mt-2 gap-x-4 ${
+          still
+            ? 'sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,13rem)] sm:grid-rows-[auto_1fr] sm:items-start'
+            : ''
+        }`}
+      >
+        <div className="min-w-0 sm:col-start-1 sm:row-start-1">
           <h3 className="text-base font-semibold text-fg-strong">{finding.title}</h3>
           <p className="mt-1 text-sm text-fg">{finding.description}</p>
 
@@ -65,20 +73,24 @@ export function FindingCard({ finding, risk, residualRisk, still }: Props) {
             </div>
           </dl>
         </div>
-        {still && <div className="mt-3 min-w-0 sm:mt-0">{still}</div>}
-      </div>
+        {still && (
+          <div className="mt-3 min-w-0 sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:mt-0">
+            {still}
+          </div>
+        )}
 
-      <div className="mt-3 rounded-md border-l-4 border-accent bg-muted p-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-fg-muted">Recommendation</p>
-        <p className="mt-1 text-sm text-fg-strong">{finding.recommendation}</p>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          {finding.required_equipment.map((item) => (
-            <Chip key={item} className="bg-surface"><Wrench className="size-3" aria-hidden />{item}</Chip>
-          ))}
-          <span className="ml-auto text-xs font-semibold text-risk-low">
-            −{reduction}% after fix{' '}
-            <span className="tabular font-mono font-medium text-fg-muted">(residual {residualRisk})</span>
-          </span>
+        <div className="mt-3 rounded-md border-l-4 border-accent bg-muted p-3 sm:col-start-1 sm:row-start-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-fg-muted">Recommendation</p>
+          <p className="mt-1 text-sm text-fg-strong">{finding.recommendation}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {finding.required_equipment.map((item) => (
+              <Chip key={item} className="bg-surface"><Wrench className="size-3" aria-hidden />{item}</Chip>
+            ))}
+            <span className="ml-auto text-xs font-semibold text-risk-low">
+              −{reduction}% after fix{' '}
+              <span className="tabular font-mono font-medium text-fg-muted">(residual {residualRisk})</span>
+            </span>
+          </div>
         </div>
       </div>
     </article>

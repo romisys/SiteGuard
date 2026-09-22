@@ -32,6 +32,26 @@ describe('CategoryBar', () => {
 })
 
 describe('FindingCard', () => {
+  it('lets the still sit alongside the recommendation, not just the description', () => {
+    // A 13rem-tall still beside three lines of text used to stretch its grid row
+    // and leave the text column half empty, because the recommendation block sat
+    // below the grid entirely. The still now spans both rows instead.
+    render(
+      <FindingCard
+        finding={findingHelmet}
+        risk={12}
+        residualRisk={2.4}
+        still={<div data-testid="the-still" />}
+      />,
+    )
+    const still = screen.getByTestId('the-still').parentElement!
+    const recommendation = screen.getByText(/recommendation/i).closest('div')!
+    expect(still.className).toMatch(/sm:row-span-2/)
+    // Same grid, so the still can span past the description into the recommendation.
+    expect(still.parentElement).toBe(recommendation.parentElement)
+  })
+
+
   it('shows all fields', () => {
     render(<FindingCard finding={findingHelmet} risk={12} residualRisk={2.4} />)
     expect(screen.getByRole('heading', { name: 'Worker without helmet' })).toBeInTheDocument()
