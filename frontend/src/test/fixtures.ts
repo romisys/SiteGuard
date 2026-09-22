@@ -4,7 +4,7 @@ export const findingHelmet: Finding = {
   subject: 'worker', category: 'ppe', title: 'Worker without helmet',
   description: 'One worker on the slab is not wearing a hard hat.',
   evidence: 'Left of frame, blue shirt', timestamp_seconds: 4,
-  timestamp_end_seconds: null, box_2d: null,
+  timestamp_end_seconds: 8, box_2d: [200, 300, 600, 550],
   severity: 4, likelihood: 3, recommendation: 'Stop work until hard hats are worn.',
   required_equipment: ['hard hat'], mitigation_effectiveness: 0.8,
 }
@@ -12,7 +12,7 @@ export const findingHelmet: Finding = {
 export const findingEdge: Finding = {
   subject: 'site', category: 'fall_protection', title: 'Unprotected slab edge',
   description: 'Open slab edge with no guardrail.', evidence: 'Right side, 2nd floor',
-  timestamp_seconds: 7, timestamp_end_seconds: null, box_2d: null,
+  timestamp_seconds: 7, timestamp_end_seconds: 12, box_2d: [500, 100, 900, 700],
   severity: 5, likelihood: 5, recommendation: 'Install guardrails and toe boards.',
   required_equipment: ['guardrail system'], mitigation_effectiveness: 0.9,
 }

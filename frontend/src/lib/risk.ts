@@ -12,15 +12,17 @@ export interface LevelMeta {
   bg: string
   /** solid fill utility (bars, gauge) */
   fill: string
+  /** border utility (hazard boxes over stills and footage) */
+  border: string
   /** raw CSS var for SVG/recharts */
   cssVar: string
 }
 
 export const LEVELS: Record<RiskLevel, LevelMeta> = {
-  Low: { label: 'Low', icon: ShieldCheck, text: 'text-risk-low', bg: 'bg-risk-low/10', fill: 'bg-risk-low', cssVar: 'var(--color-risk-low)' },
-  Moderate: { label: 'Moderate', icon: AlertTriangle, text: 'text-risk-moderate', bg: 'bg-risk-moderate/10', fill: 'bg-risk-moderate', cssVar: 'var(--color-risk-moderate)' },
-  High: { label: 'High', icon: ShieldAlert, text: 'text-risk-high', bg: 'bg-risk-high/10', fill: 'bg-risk-high', cssVar: 'var(--color-risk-high)' },
-  Critical: { label: 'Critical', icon: OctagonAlert, text: 'text-risk-critical', bg: 'bg-risk-critical/10', fill: 'bg-risk-critical', cssVar: 'var(--color-risk-critical)' },
+  Low: { label: 'Low', icon: ShieldCheck, text: 'text-risk-low', bg: 'bg-risk-low/10', fill: 'bg-risk-low', border: 'border-risk-low', cssVar: 'var(--color-risk-low)' },
+  Moderate: { label: 'Moderate', icon: AlertTriangle, text: 'text-risk-moderate', bg: 'bg-risk-moderate/10', fill: 'bg-risk-moderate', border: 'border-risk-moderate', cssVar: 'var(--color-risk-moderate)' },
+  High: { label: 'High', icon: ShieldAlert, text: 'text-risk-high', bg: 'bg-risk-high/10', fill: 'bg-risk-high', border: 'border-risk-high', cssVar: 'var(--color-risk-high)' },
+  Critical: { label: 'Critical', icon: OctagonAlert, text: 'text-risk-critical', bg: 'bg-risk-critical/10', fill: 'bg-risk-critical', border: 'border-risk-critical', cssVar: 'var(--color-risk-critical)' },
 }
 
 /** Same thresholds as backend scoring.level_for. */

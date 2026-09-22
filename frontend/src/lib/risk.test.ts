@@ -17,6 +17,9 @@ describe('metadata tables', () => {
       expect(meta.label).toBeTruthy()
       expect(meta.icon).toBeTruthy()
       expect(meta.text).toMatch(/^text-risk-/)
+      expect(meta.bg).toMatch(/^bg-risk-/)
+      expect(meta.fill).toMatch(/^bg-risk-/)
+      expect(meta.border).toMatch(/^border-risk-/)
     }
   })
 
