@@ -27,6 +27,8 @@ export interface Finding {
   description: string
   evidence: string
   timestamp_seconds: number | null
+  timestamp_end_seconds: number | null
+  box_2d: number[] | null
   severity: number
   likelihood: number
   recommendation: string

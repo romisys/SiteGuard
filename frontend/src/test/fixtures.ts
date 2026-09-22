@@ -4,6 +4,7 @@ export const findingHelmet: Finding = {
   subject: 'worker', category: 'ppe', title: 'Worker without helmet',
   description: 'One worker on the slab is not wearing a hard hat.',
   evidence: 'Left of frame, blue shirt', timestamp_seconds: 4,
+  timestamp_end_seconds: null, box_2d: null,
   severity: 4, likelihood: 3, recommendation: 'Stop work until hard hats are worn.',
   required_equipment: ['hard hat'], mitigation_effectiveness: 0.8,
 }
@@ -11,14 +12,16 @@ export const findingHelmet: Finding = {
 export const findingEdge: Finding = {
   subject: 'site', category: 'fall_protection', title: 'Unprotected slab edge',
   description: 'Open slab edge with no guardrail.', evidence: 'Right side, 2nd floor',
-  timestamp_seconds: 7, severity: 5, likelihood: 5, recommendation: 'Install guardrails and toe boards.',
+  timestamp_seconds: 7, timestamp_end_seconds: null, box_2d: null,
+  severity: 5, likelihood: 5, recommendation: 'Install guardrails and toe boards.',
   required_equipment: ['guardrail system'], mitigation_effectiveness: 0.9,
 }
 
 export const findingCable: Finding = {
   subject: 'equipment', category: 'electrical', title: 'Extension cable in water',
   description: 'Power cable running through a puddle.', evidence: 'Ground floor entrance',
-  timestamp_seconds: null, severity: 5, likelihood: 3, recommendation: 'Reroute cable overhead.',
+  timestamp_seconds: null, timestamp_end_seconds: null, box_2d: null,
+  severity: 5, likelihood: 3, recommendation: 'Reroute cable overhead.',
   required_equipment: ['cable hooks'], mitigation_effectiveness: 0.7,
 }
 
