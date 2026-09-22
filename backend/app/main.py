@@ -1,4 +1,5 @@
 import logging
+import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -58,3 +59,8 @@ def create_app(settings: Settings | None = None, analyzer: GeminiAnalyzer | None
     app.include_router(analyses.router, prefix="/api")
     app.include_router(stats.router, prefix="/api")
     return app
+
+
+# Vercel's Python runtime imports this module and looks for a top-level `app`.
+# Guarded on VERCEL so importing app.main in tests stays cheap: no engine, no DB.
+app = create_app() if os.environ.get("VERCEL") else None
