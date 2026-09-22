@@ -20,6 +20,9 @@ def _isolate_gemini_env(request, monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("GEMINI_MODEL", raising=False)
     monkeypatch.delenv("DATA_DIR", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("BLOB_READ_WRITE_TOKEN", raising=False)
+    monkeypatch.delenv("SITEGUARD_SYNC_ANALYSIS", raising=False)
 
 
 @pytest.fixture

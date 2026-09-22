@@ -31,3 +31,29 @@ def test_thinking_budget_env_override(monkeypatch, tmp_path: Path):
     monkeypatch.setenv("GEMINI_THINKING_BUDGET", "512")
     s = Settings(_env_file=None, data_dir=tmp_path)
     assert s.gemini_thinking_budget == 512
+
+
+def test_database_url_prefers_explicit_env(monkeypatch, tmp_path: Path):
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@host/db")
+    s = Settings(_env_file=None, data_dir=tmp_path)
+    # normalised to the psycopg driver SQLAlchemy needs
+    assert s.database_url == "postgresql+psycopg://u:p@host/db"
+
+
+def test_database_url_falls_back_to_sqlite(tmp_path: Path):
+    s = Settings(_env_file=None, data_dir=tmp_path)
+    assert s.database_url == f"sqlite:///{tmp_path / 'siteguard.db'}"
+
+
+def test_serverless_flags_default_off(tmp_path: Path):
+    s = Settings(_env_file=None, data_dir=tmp_path)
+    assert s.blob_token is None
+    assert s.sync_analysis is False
+
+
+def test_serverless_flags_read_env(monkeypatch, tmp_path: Path):
+    monkeypatch.setenv("BLOB_READ_WRITE_TOKEN", "vercel_blob_rw_x")
+    monkeypatch.setenv("SITEGUARD_SYNC_ANALYSIS", "1")
+    s = Settings(_env_file=None, data_dir=tmp_path)
+    assert s.blob_token == "vercel_blob_rw_x"
+    assert s.sync_analysis is True
