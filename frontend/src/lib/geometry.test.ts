@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { findingEdge } from '../test/fixtures'
-import { boxToPercent, contentRect, isVisibleAt } from './geometry'
+import { boxToPercent, captionPlacement, contentRect, isVisibleAt } from './geometry'
 
 describe('boxToPercent', () => {
   it('converts a 0-1000 box to CSS percentages', () => {
@@ -54,5 +54,32 @@ describe('isVisibleAt', () => {
     const open = { ...visible, timestamp_end_seconds: null }
     expect(isVisibleAt(open, 8.5)).toBe(true)
     expect(isVisibleAt(open, 8.6)).toBe(false)
+  })
+})
+
+describe('captionPlacement', () => {
+  it('starts a label at its box and gives it the room to the right', () => {
+    expect(captionPlacement({ top: 10, left: 20, width: 30, height: 30 })).toEqual({
+      left: '20%', maxWidth: '80%',
+    })
+  })
+
+  it('hangs a label off the right edge of a box with little room beside it', () => {
+    // left 70 + width 25: a label starting at 70% has only 30% of the frame left.
+    expect(captionPlacement({ top: 10, left: 70, width: 25, height: 20 })).toEqual({
+      right: '5%', maxWidth: '95%',
+    })
+  })
+
+  it('never lets a label reach past either edge of the frame', () => {
+    for (const left of [0, 25, 55, 60, 61, 80, 99, 100]) {
+      const place = captionPlacement({ top: 0, left, width: 5, height: 5 })
+      const start = place.left !== undefined ? Number.parseFloat(place.left) : null
+      const end = place.right !== undefined ? 100 - Number.parseFloat(place.right) : null
+      const max = Number.parseFloat(place.maxWidth)
+      expect(max).toBeGreaterThan(0)
+      if (start !== null) expect(start + max).toBeLessThanOrEqual(100)
+      if (end !== null) expect(end - max).toBeGreaterThanOrEqual(0)
+    }
   })
 })

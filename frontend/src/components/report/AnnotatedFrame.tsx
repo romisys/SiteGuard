@@ -1,6 +1,6 @@
 import { ImageOff, Loader2 } from 'lucide-react'
 import type { Finding } from '../../api/types'
-import { boxToPercent } from '../../lib/geometry'
+import { boxToPercent, captionPlacement } from '../../lib/geometry'
 import { LEVELS, riskBand } from '../../lib/risk'
 
 interface Props {
@@ -63,10 +63,10 @@ export function AnnotatedFrame({ src, finding, failed = false }: Props) {
             }}
           />
           <figcaption
-            className={`pointer-events-none absolute max-w-[85%] truncate rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-semibold ${level.text}`}
+            className={`pointer-events-none absolute truncate rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-semibold ${level.text}`}
             style={{
               top: captionAbove ? `calc(${box.top}% - 1.25rem)` : `${box.top}%`,
-              left: `${box.left}%`,
+              ...captionPlacement(box),
             }}
           >
             {finding.title}

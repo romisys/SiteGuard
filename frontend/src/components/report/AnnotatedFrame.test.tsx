@@ -34,6 +34,15 @@ describe('AnnotatedFrame', () => {
     expect(screen.getByText(/could not capture/i)).toBeInTheDocument()
   })
 
+  it('keeps a label for a box near the right edge inside the still', () => {
+    // Left-aligning it there would run the title off the frame, and the figure
+    // clips its overflow, so the end of the title would simply be gone.
+    render(<AnnotatedFrame src="data:image/jpeg;base64,x" finding={{ ...findingEdge, box_2d: [400, 700, 500, 950] }} />)
+    const caption = screen.getByText('Unprotected slab edge')
+    expect(caption).toHaveStyle({ right: '5%', maxWidth: '95%' })
+    expect(caption.style.left).toBe('')
+  })
+
   it('keeps a box at the very top of the frame inside the still', () => {
     // A caption placed above a box flush with the top edge would be clipped away.
     render(<AnnotatedFrame src="data:image/jpeg;base64,x" finding={{ ...findingEdge, box_2d: [0, 100, 400, 700] }} />)

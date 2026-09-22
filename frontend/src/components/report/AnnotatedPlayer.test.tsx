@@ -87,6 +87,15 @@ describe('AnnotatedPlayer', () => {
     expect(layer).toHaveStyle({ height: '450px', top: '175px' })
   })
 
+  it('keeps a label for a box near the right edge inside the painted frame', () => {
+    const rightEdge: Finding = { ...findingEdge, box_2d: [400, 700, 500, 950] }
+    const { video } = renderPlayer([rightEdge])
+    seek(video, 7)
+    const caption = screen.getByTestId('overlay-caption')
+    expect(caption).toHaveStyle({ right: '5%', maxWidth: '95%' })
+    expect(caption.style.left).toBe('')
+  })
+
   it('keeps two captions in the same spot from printing over each other', () => {
     const twin: Finding = { ...findingEdge, title: 'Second hazard here' }
     const { video } = renderPlayer([findingEdge, twin])

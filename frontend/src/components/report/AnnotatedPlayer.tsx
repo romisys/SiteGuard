@@ -1,7 +1,14 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Finding } from '../../api/types'
 import { formatTimestamp } from '../../lib/format'
-import { boxToPercent, contentRect, isVisibleAt, type BoxPercent, type Rect } from '../../lib/geometry'
+import {
+  boxToPercent,
+  captionPlacement,
+  contentRect,
+  isVisibleAt,
+  type BoxPercent,
+  type Rect,
+} from '../../lib/geometry'
 import { LEVELS, riskBand, type LevelMeta } from '../../lib/risk'
 
 interface Props {
@@ -152,8 +159,8 @@ function TimelinePlayer({ src, label, located }: { src: string; label: string; l
                 />
                 <span
                   data-testid="overlay-caption"
-                  className={`absolute max-w-[85%] truncate rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-semibold ${hazard.level.text}`}
-                  style={{ top: `${captionTops[i]}%`, left: `${box.left}%` }}
+                  className={`absolute truncate rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] font-semibold ${hazard.level.text}`}
+                  style={{ top: `${captionTops[i]}%`, ...captionPlacement(box) }}
                 >
                   {hazard.finding.title}
                 </span>

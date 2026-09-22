@@ -20,6 +20,31 @@ export function boxToPercent(box: number[]): BoxPercent {
   }
 }
 
+export interface CaptionPlacement {
+  left?: string
+  right?: string
+  maxWidth: string
+}
+
+/** Below this much room beside a box, a left-aligned label is not worth it. */
+const MIN_CAPTION_ROOM_PCT = 40
+
+/**
+ * Where a hazard's label sits across the frame, guaranteed to stay inside it.
+ *
+ * A label aligned with the left edge of its box runs off the picture when the
+ * box is over on the right, and the frame clips its overflow — half a title is
+ * worse than a short one. So a box with little room beside it hangs its label
+ * off its own right edge instead, and either way the label is capped at the
+ * room it actually has, leaving `truncate` to shorten what still does not fit.
+ */
+export function captionPlacement(box: BoxPercent): CaptionPlacement {
+  const room = 100 - box.left
+  if (room >= MIN_CAPTION_ROOM_PCT) return { left: `${box.left}%`, maxWidth: `${room}%` }
+  const rightEdge = Math.min(100, box.left + box.width)
+  return { right: `${100 - rightEdge}%`, maxWidth: `${rightEdge}%` }
+}
+
 export interface Rect {
   x: number
   y: number
