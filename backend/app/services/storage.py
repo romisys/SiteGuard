@@ -80,18 +80,30 @@ class BlobStorage:
                     "x-add-random-suffix": "0",
                 },
             )
-            response.raise_for_status()
+            if response.status_code >= 400:
+                # The Blob API explains refusals in the body; a bare status code does not.
+                raise StorageError(
+                    f"Blob upload failed ({response.status_code}): {response.text[:300]}"
+                )
             return response.json()["url"]
-        except Exception as exc:  # noqa: BLE001 - normalise transport + API errors
+        except StorageError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - normalise transport errors
             raise StorageError(f"Could not upload to Blob storage: {exc}") from exc
 
     def absolute(self, rel_path: str) -> Path:
         target = self._cache_dir / Path(urlparse(rel_path).path).name
         if not target.exists():
             try:
-                response = self._http.get(rel_path)
-                response.raise_for_status()
+                # A private store refuses anonymous reads, so always send the token.
+                response = self._http.get(rel_path, headers=self._headers())
+                if response.status_code >= 400:
+                    raise StorageError(
+                        f"Blob download failed ({response.status_code}): {response.text[:300]}"
+                    )
                 target.write_bytes(response.content)
+            except StorageError:
+                raise
             except Exception as exc:  # noqa: BLE001
                 raise StorageError(f"Could not read from Blob storage: {exc}") from exc
         return target

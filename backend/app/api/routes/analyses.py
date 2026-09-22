@@ -6,7 +6,13 @@ from app.api.deps import get_service, get_settings
 from app.api.schemas import AnalysisDetail, AnalysisSummary, CreatedResponse, to_detail, to_summary
 from app.config import Settings
 from app.services.analysis_service import AnalysisService
-from app.services.errors import AnalysisNotFound, FileTooLarge, InvalidState, UnsupportedMediaType
+from app.services.errors import (
+    AnalysisNotFound,
+    FileTooLarge,
+    InvalidState,
+    StorageError,
+    UnsupportedMediaType,
+)
 
 router = APIRouter(prefix="/analyses", tags=["analyses"])
 
@@ -40,6 +46,9 @@ async def create_analysis(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except FileTooLarge as exc:
         raise HTTPException(status_code=413, detail=str(exc)) from exc
+    except StorageError as exc:
+        # Blob storage is a dependency, not a client mistake: say so instead of a bare 500.
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     if service.runs_inline:
         # service.run never raises; it writes the outcome to the row.
         await run_in_threadpool(service.run, analysis.id)

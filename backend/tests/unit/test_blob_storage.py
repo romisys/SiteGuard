@@ -24,8 +24,8 @@ class FakeHttp:
         self.calls.append(("put", url, headers))
         return FakeResponse(200, {"url": self.put_url})
 
-    def get(self, url):
-        self.calls.append(("get", url, None))
+    def get(self, url, *, headers=None):
+        self.calls.append(("get", url, headers))
         return FakeResponse(200, None, self.content)
 
     def delete(self, url, *, json, headers):
@@ -51,10 +51,13 @@ def test_save_rejects_unknown_mime(tmp_path):
 
 
 def test_absolute_downloads_to_a_local_path(tmp_path):
-    storage = BlobStorage(token="tok", http=FakeHttp(content=b"hello"), cache_dir=tmp_path)
+    http = FakeHttp(content=b"hello")
+    storage = BlobStorage(token="tok", http=http, cache_dir=tmp_path)
     path = storage.absolute("https://blob.example/uploads/abc.mov")
     assert path.read_bytes() == b"hello"
     assert path.suffix == ".mov"
+    # A private store refuses anonymous reads, so the token must travel with the GET.
+    assert http.calls[0][2]["authorization"] == "Bearer tok"
 
 
 def test_absolute_caches_the_download(tmp_path):
@@ -94,7 +97,7 @@ def test_save_wraps_transport_errors(tmp_path):
 
 def test_absolute_wraps_transport_errors(tmp_path):
     class Boom(FakeHttp):
-        def get(self, url):
+        def get(self, url, *, headers=None):
             raise RuntimeError("network down")
 
     with pytest.raises(StorageError):
