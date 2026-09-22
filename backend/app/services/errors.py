@@ -24,3 +24,7 @@ class AnalyzerError(ServiceError):
 
 class InvalidModelOutput(AnalyzerError):
     """Gemini answered but the JSON did not match the contract."""
+
+
+class StorageError(ServiceError):
+    """Uploading to or reading from blob storage failed."""
