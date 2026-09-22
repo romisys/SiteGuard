@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { completedDetail, findingEdge, findingHelmet } from '../../test/fixtures'
+import { completedDetail, findingCable, findingEdge, findingHelmet } from '../../test/fixtures'
 import { CategoryBar } from './CategoryBar'
 import { FindingCard } from './FindingCard'
 import { FindingsList } from './FindingsList'
@@ -46,9 +46,16 @@ describe('FindingCard', () => {
   })
 })
 
+const listProps = {
+  result: completedDetail.result!,
+  scores: completedDetail.scores!,
+  mediaSrc: '/api/analyses/a1/media',
+  mediaType: 'video' as const,
+}
+
 describe('FindingsList', () => {
   it('sorts by risk desc and filters by subject', async () => {
-    render(<FindingsList result={completedDetail.result!} scores={completedDetail.scores!} />)
+    render(<FindingsList {...listProps} />)
     const headings = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
     expect(headings).toEqual(['Unprotected slab edge', 'Extension cable in water', 'Worker without helmet'])
 
@@ -58,5 +65,23 @@ describe('FindingsList', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /all \(3\)/i }))
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(3)
+  })
+
+  it('shows an annotated still for a localised finding', () => {
+    render(<FindingsList {...listProps} />)
+    // two of the three fixture findings carry a box; the cable has none
+    expect(screen.getAllByRole('figure', { name: /annotated frame/i })).toHaveLength(2)
+  })
+
+  it('omits the still for an image analysis without a box', () => {
+    const result = { ...completedDetail.result!, findings: [{ ...findingCable }] }
+    render(<FindingsList result={result} scores={completedDetail.scores!} mediaSrc="/x" mediaType="image" />)
+    expect(screen.queryByRole('figure')).not.toBeInTheDocument()
+  })
+
+  it('annotates an image analysis with the media itself, capturing nothing', () => {
+    const result = { ...completedDetail.result!, findings: [{ ...findingEdge, timestamp_seconds: null }] }
+    render(<FindingsList result={result} scores={completedDetail.scores!} mediaSrc="/photo.jpg" mediaType="image" />)
+    expect(screen.getByRole('img', { name: /frame showing unprotected slab edge/i })).toHaveAttribute('src', '/photo.jpg')
   })
 })

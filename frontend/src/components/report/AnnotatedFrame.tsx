@@ -25,9 +25,11 @@ export function AnnotatedFrame({ src, finding, failed = false }: Props) {
   // frame, so a high box wears its label on the inside instead.
   const captionAbove = box !== null && box.top > 10
 
+  // The still is a data URL, so it prints; the box is a border and its label a
+  // background, and a browser drops both from a PDF unless colours are kept exact.
   return (
     <figure
-      className="relative overflow-hidden rounded-md border border-border bg-muted print:break-inside-avoid"
+      className="relative overflow-hidden rounded-md border border-border bg-muted print:break-inside-avoid print:[-webkit-print-color-adjust:exact] print:[print-color-adjust:exact]"
       aria-label={`Annotated frame: ${finding.title}`}
     >
       {src ? (

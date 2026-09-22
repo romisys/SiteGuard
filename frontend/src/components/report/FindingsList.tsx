@@ -1,12 +1,45 @@
 import { useMemo, useState } from 'react'
-import type { AnalysisResult, FindingSubject, ScoreSummary } from '../../api/types'
+import type { AnalysisResult, FindingSubject, MediaType, ScoreSummary } from '../../api/types'
+import { useFrameCaptures } from '../../hooks/useFrameCaptures'
 import { SUBJECT_META } from '../../lib/risk'
+import { AnnotatedFrame } from './AnnotatedFrame'
 import { FindingCard } from './FindingCard'
 
 type Filter = 'all' | FindingSubject
 
-export function FindingsList({ result, scores }: { result: AnalysisResult; scores: ScoreSummary }) {
+interface Props {
+  result: AnalysisResult
+  scores: ScoreSummary
+  /** The analysed media itself: the source of every still. */
+  mediaSrc: string
+  mediaType: MediaType
+}
+
+export function FindingsList({ result, scores, mediaSrc, mediaType }: Props) {
   const [filter, setFilter] = useState<Filter>('all')
+
+  // One capture run for the whole list — a report with eight findings must not
+  // mean eight video elements downloading the same clip. The run is built from
+  // `result.findings` in source order, so a finding's slot in it is its own
+  // index and never shifts when the list is sorted by risk or filtered.
+  const { timestamps, slotOf } = useMemo(() => {
+    const times: number[] = []
+    const slots = new Map<number, number>()
+    if (mediaType === 'video') {
+      result.findings.forEach((finding, index) => {
+        if (finding.timestamp_seconds === null || finding.box_2d === null) return
+        slots.set(index, times.length)
+        times.push(finding.timestamp_seconds)
+      })
+    }
+    return { timestamps: times, slotOf: slots }
+  }, [result.findings, mediaType])
+
+  const { frames, failed } = useFrameCaptures({
+    src: mediaSrc,
+    timestamps,
+    enabled: mediaType === 'video' && timestamps.length > 0,
+  })
 
   const rows = useMemo(() => {
     const byIndex = new Map(scores.per_finding.map((p) => [p.index, p]))
@@ -66,9 +99,23 @@ export function FindingsList({ result, scores }: { result: AnalysisResult; score
         <p className="text-sm text-fg-muted">No findings for this filter.</p>
       ) : (
         <div className="space-y-3">
-          {visible.map((row) => (
-            <FindingCard key={row.index} finding={row.finding} risk={row.risk} residualRisk={row.residualRisk} />
-          ))}
+          {visible.map((row) => {
+            // A photo is its own still; a clip has to be seeked and painted first.
+            const slot = slotOf.get(row.index)
+            const annotated = mediaType === 'image' ? row.finding.box_2d !== null : slot !== undefined
+            const still = mediaType === 'image' ? mediaSrc : slot === undefined ? null : frames[slot] ?? null
+            return (
+              <FindingCard
+                key={row.index}
+                finding={row.finding}
+                risk={row.risk}
+                residualRisk={row.residualRisk}
+                still={
+                  annotated ? <AnnotatedFrame src={still} finding={row.finding} failed={failed} /> : undefined
+                }
+              />
+            )
+          })}
         </div>
       )}
     </div>

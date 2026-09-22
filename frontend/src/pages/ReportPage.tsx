@@ -132,7 +132,7 @@ export function ReportPage() {
       </div>
 
       <Card title={`Findings (${result.findings.length})`} className="print-break">
-        <FindingsList result={result} scores={scores} />
+        <FindingsList result={result} scores={scores} mediaSrc={api.mediaUrl(analysis.id)} mediaType={analysis.media_type} />
       </Card>
 
       <Card title="Positive observations">

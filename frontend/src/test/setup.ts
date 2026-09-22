@@ -26,6 +26,10 @@ class ResizeObserverStub {
 }
 globalThis.ResizeObserver = globalThis.ResizeObserver ?? (ResizeObserverStub as unknown as typeof ResizeObserver)
 
+// jsdom decodes no media, so the off-screen video the frame-capture hook drives logs
+// "Not implemented" on every report render. Stub it out; the hook's own tests inject a fake element.
+HTMLMediaElement.prototype.load = vi.fn()
+
 // jsdom defines scrollTo as a "not implemented" function that logs errors, so replace it outright.
 window.scrollTo = vi.fn()
 // jsdom has no matchMedia
