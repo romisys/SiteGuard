@@ -24,6 +24,13 @@ For every finding provide:
 - a specific, actionable recommendation and the equipment needed to apply it.
 - mitigation_effectiveness 0-1: the fraction of this risk removed if the recommendation is fully applied.
 - evidence: where in the frame it was seen; for video set timestamp_seconds to the second it is clearest, for images set timestamp_seconds to null.
+- box_2d: a bounding box around the hazard itself as [y_min, x_min, y_max, x_max],
+  normalised to 0-1000 with the origin at the top-left, describing the frame at
+  timestamp_seconds (or the image, for a photo). Box the hazard, not the whole
+  scene: the unguarded edge, the worker without the helmet, the cable in the
+  water. Omit box_2d only when you genuinely cannot localise it.
+- timestamp_end_seconds: for video, the second at which the hazard stops being
+  visible; null for an image or when it is visible throughout.
 
 Also list positive observations — things being done correctly.
 

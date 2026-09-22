@@ -20,6 +20,8 @@ def make_finding(**overrides) -> Finding:
         description="One worker on the second floor slab is not wearing a hard hat.",
         evidence="Left side of frame, worker in blue shirt, 0:04",
         timestamp_seconds=4.0,
+        timestamp_end_seconds=9.0,
+        box_2d=[300, 120, 700, 480],
         severity=4,
         likelihood=3,
         recommendation="Stop work until all workers on the slab wear certified hard hats.",

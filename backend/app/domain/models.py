@@ -5,7 +5,7 @@ No FastAPI, SQLAlchemy or google-genai imports here.
 
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class RiskCategory(StrEnum):
@@ -76,6 +76,16 @@ class Finding(BaseModel):
     description: str = Field(description="What was observed")
     evidence: str = Field(description="Where in the frame / when it was seen")
     timestamp_seconds: float | None = Field(default=None, description="Video only")
+    timestamp_end_seconds: float | None = Field(
+        default=None, description="Video only: when the hazard stops being visible"
+    )
+    box_2d: list[int] | None = Field(
+        default=None,
+        description=(
+            "Bounding box around the hazard at timestamp_seconds, as "
+            "[y_min, x_min, y_max, x_max] normalised to 0-1000"
+        ),
+    )
     severity: int = Field(
         ge=1, le=5, description="Consequence if it happens, 1 first aid .. 5 fatality"
     )
@@ -87,6 +97,19 @@ class Finding(BaseModel):
     mitigation_effectiveness: float = Field(
         ge=0, le=1, description="Fraction of this risk removed if the recommendation is applied"
     )
+
+    @field_validator("box_2d", mode="after")
+    @classmethod
+    def _drop_malformed_box(cls, value: list[int] | None) -> list[int] | None:
+        """A box we cannot draw is worth losing; the finding itself is not."""
+        if value is None:
+            return None
+        if len(value) != 4 or not all(0 <= v <= 1000 for v in value):
+            return None
+        y_min, x_min, y_max, x_max = value
+        if y_min >= y_max or x_min >= x_max:
+            return None
+        return value
 
     @property
     def risk(self) -> int:

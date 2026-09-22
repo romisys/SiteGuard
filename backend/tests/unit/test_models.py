@@ -56,3 +56,33 @@ def test_result_requires_workers_block():
     del payload["workers"]
     with pytest.raises(ValidationError):
         AnalysisResult(**payload)
+
+
+def test_box_2d_accepts_a_normalised_box():
+    f = make_finding(box_2d=[100, 200, 400, 600])
+    assert f.box_2d == [100, 200, 400, 600]
+
+
+def test_box_2d_is_optional():
+    assert make_finding(box_2d=None).box_2d is None
+
+
+@pytest.mark.parametrize(
+    "box",
+    [
+        [1, 2, 3],  # too few
+        [1, 2, 3, 4, 5],  # too many
+        [-1, 0, 100, 100],  # below range
+        [0, 0, 1001, 100],  # above range
+        [400, 0, 100, 100],  # y_min >= y_max
+        [0, 600, 100, 200],  # x_min >= x_max
+    ],
+)
+def test_malformed_box_is_dropped_not_fatal(box):
+    """A bad box must cost the thumbnail, never the whole report."""
+    assert make_finding(box_2d=box).box_2d is None
+
+
+def test_timestamp_end_defaults_to_none():
+    payload = make_finding().model_dump(exclude={"timestamp_end_seconds"})
+    assert Finding(**payload).timestamp_end_seconds is None
