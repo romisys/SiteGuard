@@ -6,6 +6,7 @@ import {
   captionPlacement,
   captionSpan,
   contentRect,
+  isBoxAccurateAt,
   isVisibleAt,
   markerTrackWidth,
   spreadMarkers,
@@ -116,16 +117,18 @@ function TimelinePlayer({ src, label, located }: { src: string; label: string; l
     return () => observer.disconnect()
   }, [hasTrack])
 
-  // `timeupdate` fires about four times a second. The boxes do not need more:
-  // each one is a single rectangle held for the whole interval its hazard is
-  // visible, so a requestAnimationFrame loop would re-render sixty times a
-  // second to move nothing. `seeked` covers scrubbing while paused, where
+  // `timeupdate` fires about four times a second, which is enough: a box is
+  // drawn only within a fraction of a second of its own frame, and it does not
+  // move within that window. `seeked` covers scrubbing while paused, where
   // `timeupdate` alone can leave the overlay a frame behind.
   const onTime = (event: { currentTarget: HTMLVideoElement }) => setTime(event.currentTarget.currentTime)
 
+  // Two different questions. `onScreen` drives the timeline: is this hazard
+  // somewhere in frame? `overlays` draws the box, which is only honest on the
+  // frame it was measured on.
   const onScreen = hazards.filter((h) => isVisibleAt(h.finding, time))
-  const overlays = onScreen
-    .filter((h) => h.finding.box_2d !== null)
+  const overlays = hazards
+    .filter((h) => h.finding.box_2d !== null && isBoxAccurateAt(h.finding, time))
     .map((hazard) => ({ hazard, box: boxToPercent(hazard.finding.box_2d as number[]) }))
     .sort((a, b) => a.box.top - b.box.top || a.box.left - b.box.left)
   const captionTops = stackCaptions(
@@ -235,6 +238,9 @@ function TimelinePlayer({ src, label, located }: { src: string; label: string; l
                     onClick={() => {
                       const video = videoRef.current
                       if (!video) return
+                      // Pause on the exact frame the box was measured on:
+                      // playing past it puts the box over a moved camera.
+                      video.pause()
                       video.currentTime = hazard.at
                       setTime(hazard.at)
                     }}

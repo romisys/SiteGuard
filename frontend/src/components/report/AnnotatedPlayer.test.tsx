@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { Finding } from '../../api/types'
 import { completedDetail, findingEdge } from '../../test/fixtures'
 import { AnnotatedPlayer } from './AnnotatedPlayer'
@@ -191,5 +191,25 @@ describe('AnnotatedPlayer', () => {
     expect(screen.queryByTestId('overlay-layer')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /jump to/i })).not.toBeInTheDocument()
     expect(screen.getByLabelText(/site footage/i)).toBeInTheDocument()
+  })
+})
+
+describe('AnnotatedPlayer box accuracy', () => {
+  it('draws a box only near the frame it was measured on, not for the whole interval', () => {
+    const { video } = renderPlayer()
+    // findingEdge: measured at 7s, hazard on screen until 12s.
+    seek(video, 7)
+    expect(screen.getAllByTestId('overlay-box').length).toBeGreaterThan(0)
+    // Still on screen at 10s, but the camera has moved: the box would be a lie.
+    seek(video, 10)
+    expect(screen.queryAllByTestId('overlay-box')).toHaveLength(0)
+  })
+
+  it('pauses when jumping to a hazard so the accurate frame can be studied', async () => {
+    const { video } = renderPlayer()
+    const pause = vi.spyOn(video, 'pause').mockImplementation(() => {})
+    await userEvent.click(screen.getAllByRole('button', { name: /jump to/i })[0])
+    expect(pause).toHaveBeenCalled()
+    pause.mockRestore()
   })
 })

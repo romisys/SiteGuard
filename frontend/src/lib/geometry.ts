@@ -107,6 +107,21 @@ export function contentRect(
   return { x: (elementWidth - width) / 2, y: (elementHeight - height) / 2, width, height }
 }
 
+/**
+ * Whether the box still describes what is on screen at `time`.
+ *
+ * Gemini measures a box on the single frame at `timestamp_seconds`. Site footage
+ * is handheld, so within a second or two the camera has moved and the same
+ * rectangle covers something else entirely — the box is a claim about a moment,
+ * not about the interval the hazard happens to be visible for. Draw it only
+ * where that claim holds; use `isVisibleAt` for "the hazard is somewhere on
+ * screen", which is a different and much longer window.
+ */
+export function isBoxAccurateAt(finding: Finding, time: number, tolerance = 0.4): boolean {
+  if (finding.timestamp_seconds === null) return false
+  return Math.abs(time - finding.timestamp_seconds) <= tolerance
+}
+
 /** Whether a finding's hazard is on screen at `time` (seconds). */
 export function isVisibleAt(finding: Finding, time: number, window = 1.5): boolean {
   if (finding.timestamp_seconds === null) return false

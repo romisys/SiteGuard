@@ -3,6 +3,7 @@ import { findingEdge } from '../test/fixtures'
 import {
   boxToPercent,
   captionPlacement,
+  isBoxAccurateAt,
   captionSpan,
   contentRect,
   isVisibleAt,
@@ -184,5 +185,31 @@ describe('spreadMarkers', () => {
   it('stacks markers from the start when the duration is unknown', () => {
     const xs = spreadMarkers([1, 2], 0, 400, MARKER)
     expect(xs).toEqual([0, MARKER])
+  })
+})
+
+describe('isBoxAccurateAt', () => {
+  const finding = { ...findingEdge, timestamp_seconds: 3, timestamp_end_seconds: 7 }
+
+  it('is true only near the frame the box was measured on', () => {
+    expect(isBoxAccurateAt(finding, 3)).toBe(true)
+    expect(isBoxAccurateAt(finding, 3.3)).toBe(true)
+    expect(isBoxAccurateAt(finding, 2.7)).toBe(true)
+  })
+
+  it('is false across the rest of the interval the hazard is on screen', () => {
+    // The hazard is still on screen at 5s and 7s, but the camera has moved and
+    // the box no longer describes anything. Drawing it there is a false claim.
+    expect(isVisibleAt(finding, 5)).toBe(true)
+    expect(isBoxAccurateAt(finding, 5)).toBe(false)
+    expect(isBoxAccurateAt(finding, 7)).toBe(false)
+  })
+
+  it('is false without a timestamp', () => {
+    expect(isBoxAccurateAt({ ...finding, timestamp_seconds: null }, 3)).toBe(false)
+  })
+
+  it('takes a tolerance', () => {
+    expect(isBoxAccurateAt(finding, 4.5, 2)).toBe(true)
   })
 })
